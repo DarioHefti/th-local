@@ -1,0 +1,33 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+*.app
+th
+
+# Compiled/Intermediate
+*.o
+*.obj
+*.pyc
+*.pyo
+*.class
+
+# Build outputs
+*.out
+*.a
+*.lib
+*.dll
+*.dylib
+*.exe
+build/
+dist/
+target/
+
+# OS generated
+.DS_Store
+Thumbs.db
+desktop.ini
+
+model/**

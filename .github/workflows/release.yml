@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.asset_name }})
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            asset_name: th-linux-amd64
+          - runs-on: macos-13
+            goos: darwin
+            goarch: amd64
+            asset_name: th-darwin-amd64
+          - runs-on: macos-14
+            goos: darwin
+            goarch: arm64
+            asset_name: th-darwin-arm64
+          - runs-on: windows-latest
+            goos: windows
+            goarch: amd64
+            asset_name: th-windows-amd64.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build native llama.cpp libraries (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts/build-llama.ps1
+
+      - name: Build native llama.cpp libraries (Unix)
+        if: runner.os != 'Windows'
+        run: bash ./scripts/build-llama.sh
+
+      - name: Build binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CGO_ENABLED: 1
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -ldflags "-X github.com/DarioHefti/th-local/cmd.Version=${{ github.ref_name }}" -o "${{ matrix.asset_name }}" .
+
+      - name: Build binary (Unix)
+        if: runner.os != 'Windows'
+        env:
+          CGO_ENABLED: 1
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -ldflags "-X github.com/DarioHefti/th-local/cmd.Version=${{ github.ref_name }}" -o "${{ matrix.asset_name }}" .
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ matrix.asset_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,36 @@
+project_name: th
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: th
+    binary: th
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/terminal-help/th/cmd.version={{.Version}}
+
+archives:
+  - format: binary
+    files:
+      - none*
+
+release:
+  github:
+    owner: terminal-help
+    name: th
+  draft: false
+  prerelease: false
+
+changelog:
+  skip: true
