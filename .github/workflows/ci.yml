@@ -15,6 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: windows-amd64
+            runs-on: windows-latest
           - name: linux-amd64
             runs-on: ubuntu-latest
           - name: macos-amd64
@@ -31,19 +33,64 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build native llama.cpp libraries
+      - name: Set up MSYS2 toolchain (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: UCRT64
+          install: >-
+            base-devel
+            git
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+
+      - name: Build native llama.cpp libraries (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: BUILD_DIR="$PWD/third_party/llama.cpp/build-mingw" CMAKE_GENERATOR="MinGW Makefiles" bash ./scripts/build-llama.sh
+
+      - name: Build native llama.cpp libraries (Unix)
+        if: runner.os != 'Windows'
         run: bash ./scripts/build-llama.sh
 
-      - name: Run tests
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        env:
+          CGO_ENABLED: 1
+          CC: gcc
+          CXX: g++
+        run: go test -v ./...
+
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
         env:
           CGO_ENABLED: 1
         run: go test -v ./...
 
-      - name: Build CLI
+      - name: Build CLI (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        env:
+          CGO_ENABLED: 1
+          CC: gcc
+          CXX: g++
+        run: go build -o th.exe .
+
+      - name: Build CLI (Unix)
+        if: runner.os != 'Windows'
         env:
           CGO_ENABLED: 1
         run: go build -o th .
 
-      - name: Verify
+      - name: Verify (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          ./th.exe --version || true
+
+      - name: Verify (Unix)
+        if: runner.os != 'Windows'
         run: |
           ./th --version || true

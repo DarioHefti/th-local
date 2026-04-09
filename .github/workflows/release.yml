@@ -43,10 +43,22 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Set up MSYS2 toolchain (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: UCRT64
+          install: >-
+            base-devel
+            git
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+
       - name: Build native llama.cpp libraries (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File scripts/build-llama.ps1
+        shell: msys2 {0}
+        run: BUILD_DIR="$PWD/third_party/llama.cpp/build-mingw" CMAKE_GENERATOR="MinGW Makefiles" bash ./scripts/build-llama.sh
 
       - name: Build native llama.cpp libraries (Unix)
         if: runner.os != 'Windows'
@@ -54,11 +66,13 @@ jobs:
 
       - name: Build binary (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
+        shell: msys2 {0}
         env:
           CGO_ENABLED: 1
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CC: gcc
+          CXX: g++
         run: go build -ldflags "-X github.com/DarioHefti/th-local/cmd.Version=${{ github.ref_name }}" -o "${{ matrix.asset_name }}" .
 
       - name: Build binary (Unix)

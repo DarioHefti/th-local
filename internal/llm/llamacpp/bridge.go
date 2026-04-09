@@ -1,7 +1,8 @@
 package llamacpp
 
 /*
-#cgo CXXFLAGS: -std=c++17 -I${SRCDIR}/../../../third_party/llama.cpp/include -I${SRCDIR}/../../../third_party/llama.cpp/ggml/include
+#cgo CPPFLAGS: -I${SRCDIR}/../../../third_party/llama.cpp/include -I${SRCDIR}/../../../third_party/llama.cpp/ggml/include
+#cgo CXXFLAGS: -std=c++17
 #cgo windows LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build-mingw/src -L${SRCDIR}/../../../third_party/llama.cpp/build-mingw/ggml/src -lllama -l:ggml.a -l:ggml-cpu.a -l:ggml-base.a -lstdc++ -lws2_32 -lpsapi -lwinmm -lbcrypt
 #cgo linux LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build/src -L${SRCDIR}/../../../third_party/llama.cpp/build/ggml/src -lllama -l:libggml.a -l:libggml-cpu.a -l:libggml-base.a -lstdc++ -lm -ldl -pthread
 #cgo darwin LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build/src -L${SRCDIR}/../../../third_party/llama.cpp/build/ggml/src -lllama -l:libggml.a -l:libggml-cpu.a -l:libggml-base.a -lc++
