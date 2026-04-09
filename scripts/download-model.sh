@@ -3,19 +3,37 @@ set -e
 
 MODEL_NAME="google_gemma-4-E2B-it-IQ2_M.gguf"
 MODEL_URL="https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-IQ2_M.gguf?download=true"
-MODEL_DIR="${MODEL_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/th/models}"
+MODEL_DIR="${MODEL_DIR:-}"
 FORCE=false
 MAX_RETRIES=3
 RETRY_DELAY=2
 
+default_model_dir() {
+	case "$(uname -s)" in
+		Darwin*) echo "$HOME/Library/Caches/th/models" ;;
+		Linux*) echo "${XDG_CACHE_HOME:-$HOME/.cache}/th/models" ;;
+		*) echo "${XDG_CACHE_HOME:-$HOME/.cache}/th/models" ;;
+	esac
+}
+
+legacy_model_dir() {
+	case "$(uname -s)" in
+		Darwin*) echo "$HOME/.cache/th/models" ;;
+		*) echo "" ;;
+	esac
+}
+
 usage() {
+	local default_model_dir_value
+	default_model_dir_value="$(default_model_dir)"
+
 	cat <<EOF
 Usage: download-model.sh [OPTIONS]
 
 Download the managed Gemma GGUF for th.
 
 OPTIONS:
-	-d, --dir DIR       Model directory (default: ~/.cache/th/models)
+	-d, --dir DIR       Model directory (default: $default_model_dir_value)
 	-f, --force         Force re-download
 	-h, --help          Show this help message
 EOF
@@ -79,6 +97,30 @@ ensure_directory() {
 	fi
 }
 
+migrate_legacy_model_if_needed() {
+	local current_model_dir="$1"
+	local legacy_dir="$2"
+
+	if [[ -z "$legacy_dir" || "$current_model_dir" == "$legacy_dir" ]]; then
+		return
+	fi
+
+	local final_path="$current_model_dir/$MODEL_NAME"
+	local legacy_path="$legacy_dir/$MODEL_NAME"
+
+	if [[ -e "$final_path" || ! -f "$legacy_path" ]]; then
+		return
+	fi
+
+	ensure_directory
+
+	log_info "Migrating model from $legacy_path to $final_path"
+	mv "$legacy_path" "$final_path" || {
+		log_error "Failed to migrate existing model to $final_path"
+		exit 1
+	}
+}
+
 download_model() {
 	local final_path="$MODEL_DIR/$MODEL_NAME"
 	local partial_path="${final_path}.part"
@@ -121,6 +163,10 @@ download_model() {
 main() {
 	parse_args "$@"
 	check_dependencies
+	if [[ -z "$MODEL_DIR" ]]; then
+		MODEL_DIR="$(default_model_dir)"
+	fi
+	migrate_legacy_model_if_needed "$MODEL_DIR" "$(legacy_model_dir)"
 	ensure_directory
 	download_model
 

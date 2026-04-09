@@ -127,6 +127,12 @@ th --config
 th "list files modified today"
 ```
 
+Managed model path defaults:
+
+- macOS: `~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf`
+- Linux: `~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf` unless `XDG_CACHE_HOME` is set
+- Windows: `%LOCALAPPDATA%\th\models\google_gemma-4-E2B-it-IQ2_M.gguf`
+
 ## Options
 
 - `--c` - Copy result to clipboard

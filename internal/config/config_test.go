@@ -26,6 +26,26 @@ func TestDefaultManagedModelPath(t *testing.T) {
 	}
 }
 
+func TestLegacyManagedModelPath(t *testing.T) {
+	origUserHomeDir := userHomeDir
+	userHomeDir = func() (string, error) {
+		return filepath.Join("home-root"), nil
+	}
+	defer func() {
+		userHomeDir = origUserHomeDir
+	}()
+
+	got, err := LegacyManagedModelPath()
+	if err != nil {
+		t.Fatalf("LegacyManagedModelPath failed: %v", err)
+	}
+
+	want := filepath.Join("home-root", ".cache", "th", "models", DefaultLocalModelFile)
+	if got != want {
+		t.Fatalf("LegacyManagedModelPath = %q, want %q", got, want)
+	}
+}
+
 func TestSaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 

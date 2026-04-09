@@ -12,19 +12,21 @@ import (
 func resolveLocalModelPath(explicitPath string) (string, error) {
 	envPath := strings.TrimSpace(os.Getenv("TH_MODEL_PATH"))
 	managedPath, _ := config.DefaultManagedModelPath()
+	legacyManagedPath, _ := config.LegacyManagedModelPath()
 
 	cwd, _ := os.Getwd()
 	executablePath, _ := os.Executable()
 	executableDir := filepath.Dir(executablePath)
 
-	return findLocalModelPath(explicitPath, envPath, managedPath, cwd, executableDir)
+	return findLocalModelPath(explicitPath, envPath, managedPath, legacyManagedPath, cwd, executableDir)
 }
 
-func findLocalModelPath(explicitPath, envPath, managedPath, cwd, executableDir string) (string, error) {
+func findLocalModelPath(explicitPath, envPath, managedPath, legacyManagedPath, cwd, executableDir string) (string, error) {
 	candidates := []string{
 		explicitPath,
 		envPath,
 		managedPath,
+		legacyManagedPath,
 		filepath.Join(cwd, "model", config.DefaultLocalModelFile),
 		filepath.Join(executableDir, "model", config.DefaultLocalModelFile),
 	}

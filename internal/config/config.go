@@ -33,6 +33,7 @@ type Config struct {
 var configDir = filepath.Join(xdg.ConfigHome, "th")
 var configPath = filepath.Join(configDir, "config.json")
 var userCacheDir = os.UserCacheDir
+var userHomeDir = os.UserHomeDir
 
 func Load() (*Config, error) {
 	data, err := os.ReadFile(configPath)
@@ -96,6 +97,15 @@ func DefaultManagedModelPath() (string, error) {
 	}
 
 	return filepath.Join(modelDir, DefaultLocalModelFile), nil
+}
+
+func LegacyManagedModelPath() (string, error) {
+	homeDir, err := userHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolving user home directory: %w", err)
+	}
+
+	return filepath.Join(homeDir, ".cache", "th", "models", DefaultLocalModelFile), nil
 }
 
 func IsConfigNotFound(err error) bool {

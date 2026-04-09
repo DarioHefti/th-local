@@ -19,7 +19,7 @@ func TestFindLocalModelPathPrefersExplicitPath(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	resolved, err := findLocalModelPath(explicitPath, envPath, filepath.Join(tmpDir, "managed.gguf"), filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
+	resolved, err := findLocalModelPath(explicitPath, envPath, filepath.Join(tmpDir, "managed.gguf"), filepath.Join(tmpDir, "legacy.gguf"), filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
 	if err != nil {
 		t.Fatalf("findLocalModelPath failed: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestFindLocalModelPathFallsBackToManagedModel(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	resolved, err := findLocalModelPath("", "", managedPath, filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
+	resolved, err := findLocalModelPath("", "", managedPath, filepath.Join(tmpDir, "legacy.gguf"), filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
 	if err != nil {
 		t.Fatalf("findLocalModelPath failed: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestFindLocalModelPathFallsBackToWorkingDirectoryModel(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	resolved, err := findLocalModelPath("", "", filepath.Join(tmpDir, "missing-managed.gguf"), workingDir, filepath.Join(tmpDir, "exe"))
+	resolved, err := findLocalModelPath("", "", filepath.Join(tmpDir, "missing-managed.gguf"), filepath.Join(tmpDir, "legacy.gguf"), workingDir, filepath.Join(tmpDir, "exe"))
 	if err != nil {
 		t.Fatalf("findLocalModelPath failed: %v", err)
 	}
@@ -72,11 +72,31 @@ func TestFindLocalModelPathFallsBackToWorkingDirectoryModel(t *testing.T) {
 	}
 }
 
+func TestFindLocalModelPathFallsBackToLegacyManagedModel(t *testing.T) {
+	tmpDir := t.TempDir()
+	legacyManagedPath := filepath.Join(tmpDir, ".cache", "th", "models", "google_gemma-4-E2B-it-IQ2_M.gguf")
+	if err := os.MkdirAll(filepath.Dir(legacyManagedPath), 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(legacyManagedPath, []byte("model"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	resolved, err := findLocalModelPath("", "", filepath.Join(tmpDir, "missing-managed.gguf"), legacyManagedPath, filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
+	if err != nil {
+		t.Fatalf("findLocalModelPath failed: %v", err)
+	}
+
+	if resolved != legacyManagedPath {
+		t.Fatalf("resolved path = %q, want %q", resolved, legacyManagedPath)
+	}
+}
+
 func TestFindLocalModelPathErrorMentionsManagedPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	managedPath := filepath.Join(tmpDir, "cache", "th", "models", "google_gemma-4-E2B-it-IQ2_M.gguf")
 
-	_, err := findLocalModelPath("", "", managedPath, filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
+	_, err := findLocalModelPath("", "", managedPath, filepath.Join(tmpDir, "legacy.gguf"), filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
 	if err == nil {
 		t.Fatal("expected findLocalModelPath to fail")
 	}

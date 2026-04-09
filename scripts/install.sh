@@ -6,12 +6,30 @@ BINARY_NAME="th"
 MODEL_NAME="google_gemma-4-E2B-it-IQ2_M.gguf"
 MODEL_URL="https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-IQ2_M.gguf?download=true"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
-MODEL_DIR="${MODEL_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/th/models}"
+MODEL_DIR="${MODEL_DIR:-}"
 FORCE=false
 MAX_RETRIES=3
 RETRY_DELAY=2
 
+default_model_dir() {
+    case "$(uname -s)" in
+        Darwin*) echo "$HOME/Library/Caches/th/models" ;;
+        Linux*) echo "${XDG_CACHE_HOME:-$HOME/.cache}/th/models" ;;
+        *) echo "${XDG_CACHE_HOME:-$HOME/.cache}/th/models" ;;
+    esac
+}
+
+legacy_model_dir() {
+    case "$(uname -s)" in
+        Darwin*) echo "$HOME/.cache/th/models" ;;
+        *) echo "" ;;
+    esac
+}
+
 usage() {
+    local default_model_dir_value
+    default_model_dir_value="$(default_model_dir)"
+
     cat <<EOF
 Usage: install.sh [OPTIONS]
 
@@ -19,14 +37,14 @@ Install th (Terminal Help) CLI
 
 OPTIONS:
     -d, --dir DIR       Installation directory (default: ~/.local/bin)
-    -m, --model-dir DIR Model directory (default: ~/.cache/th/models)
+    -m, --model-dir DIR Model directory (default: $default_model_dir_value)
     -f, --force         Force reinstall
     -h, --help          Show this help message
 
 EXAMPLES:
     install.sh
     install.sh -d /usr/local/bin
-    install.sh -m ~/.cache/th/models
+    install.sh -m "$default_model_dir_value"
     install.sh -f
 EOF
 }
@@ -156,6 +174,30 @@ ensure_directory() {
     fi
 }
 
+migrate_legacy_model_if_needed() {
+    local current_model_dir="$1"
+    local legacy_dir="$2"
+
+    if [[ -z "$legacy_dir" || "$current_model_dir" == "$legacy_dir" ]]; then
+        return
+    fi
+
+    local final_path="$current_model_dir/$MODEL_NAME"
+    local legacy_path="$legacy_dir/$MODEL_NAME"
+
+    if [[ -e "$final_path" || ! -f "$legacy_path" ]]; then
+        return
+    fi
+
+    ensure_directory "$current_model_dir" "model"
+
+    log_info "Migrating model from $legacy_path to $final_path"
+    mv "$legacy_path" "$final_path" || {
+        log_error "Failed to migrate existing model to $final_path"
+        exit 1
+    }
+}
+
 download_file() {
     local url="$1"
     local output_path="$2"
@@ -256,6 +298,12 @@ verify_binary() {
 main() {
     parse_args "$@"
     check_dependencies
+
+    if [[ -z "$MODEL_DIR" ]]; then
+        MODEL_DIR="$(default_model_dir)"
+    fi
+
+    migrate_legacy_model_if_needed "$MODEL_DIR" "$(legacy_model_dir)"
     
     local binary_path="$INSTALL_DIR/$BINARY_NAME"
     

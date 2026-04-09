@@ -13,7 +13,8 @@ Current prebuilt release assets are published for Linux amd64, macOS arm64, and 
 | Item | Location |
 |------|----------|
 | Binary | `~/.local/bin/th` |
-| Model | `~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf` |
+| Model (Linux) | `~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf` |
+| Model (macOS) | `~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf` |
 | Custom directory | User-specified via `-d` or `--dir` option |
 | Custom model directory | User-specified via `-m` or `--model-dir` option |
 
@@ -23,7 +24,8 @@ Current prebuilt release assets are published for Linux amd64, macOS arm64, and 
 # Default installation
 ./scripts/install.sh
 # Installs binary to: ~/.local/bin/th
-# Installs model to: ~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
+# Installs model to Linux: ~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
+# Installs model to macOS: ~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
 
 # Custom directory
 ./scripts/install.sh -d /usr/local/bin
@@ -109,6 +111,7 @@ For source builds, the direct bridge uses the checked-out `third_party/llama.cpp
 ```bash
 rm ~/.local/bin/th
 rm ~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
+rm ~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
 # Remove from PATH manually if added
 ```
 

@@ -71,6 +71,9 @@ func resolveInferenceTestModelPath() (string, error) {
 	if managedPath, err := config.DefaultManagedModelPath(); err == nil {
 		candidates = append(candidates, managedPath)
 	}
+	if legacyManagedPath, err := config.LegacyManagedModelPath(); err == nil {
+		candidates = append(candidates, legacyManagedPath)
+	}
 
 	compatibilityPath, err := filepath.Abs(filepath.Join("..", "..", "model", config.DefaultLocalModelFile))
 	if err == nil {
