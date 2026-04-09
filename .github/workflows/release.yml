@@ -68,14 +68,16 @@ jobs:
 
       - name: Build binary (Windows)
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: pwsh
         env:
           CGO_ENABLED: 1
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CC: gcc
-          CXX: g++
-        run: go build -ldflags "-X github.com/DarioHefti/th-local/cmd.Version=${{ github.ref_name }}" -o "${{ matrix.asset_name }}" .
+          CC: C:\msys64\ucrt64\bin\gcc.exe
+          CXX: C:\msys64\ucrt64\bin\g++.exe
+        run: |
+          $env:PATH = "C:\msys64\ucrt64\bin;C:\msys64\usr\bin;$env:PATH"
+          go build -ldflags "-X github.com/DarioHefti/th-local/cmd.Version=${{ github.ref_name }}" -o "${{ matrix.asset_name }}" .
 
       - name: Build binary (Unix)
         if: runner.os != 'Windows'

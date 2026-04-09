@@ -58,12 +58,14 @@ jobs:
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: pwsh
         env:
           CGO_ENABLED: 1
-          CC: gcc
-          CXX: g++
-        run: go test -v ./...
+          CC: C:\msys64\ucrt64\bin\gcc.exe
+          CXX: C:\msys64\ucrt64\bin\g++.exe
+        run: |
+          $env:PATH = "C:\msys64\ucrt64\bin;C:\msys64\usr\bin;$env:PATH"
+          go test -v ./...
 
       - name: Run tests (Unix)
         if: runner.os != 'Windows'
@@ -73,12 +75,14 @@ jobs:
 
       - name: Build CLI (Windows)
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: pwsh
         env:
           CGO_ENABLED: 1
-          CC: gcc
-          CXX: g++
-        run: go build -o th.exe .
+          CC: C:\msys64\ucrt64\bin\gcc.exe
+          CXX: C:\msys64\ucrt64\bin\g++.exe
+        run: |
+          $env:PATH = "C:\msys64\ucrt64\bin;C:\msys64\usr\bin;$env:PATH"
+          go build -o th.exe .
 
       - name: Build CLI (Unix)
         if: runner.os != 'Windows'
@@ -88,9 +92,9 @@ jobs:
 
       - name: Verify (Windows)
         if: runner.os == 'Windows'
-        shell: msys2 {0}
+        shell: pwsh
         run: |
-          ./th.exe --version || true
+          .\th.exe --version
 
       - name: Verify (Unix)
         if: runner.os != 'Windows'
