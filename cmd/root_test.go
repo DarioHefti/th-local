@@ -46,8 +46,8 @@ func TestValidateRootArgs_RegularModeTooManyArgs(t *testing.T) {
 }
 
 func TestNormalizeArgs(t *testing.T) {
-	got := normalizeArgs([]string{"-gt", "-log", "query"})
-	want := []string{"-gt", "--log", "query"}
+	got := normalizeArgs([]string{"--version", "-gt", "-log", "query"})
+	want := []string{"version", "-gt", "--log", "query"}
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("normalizeArgs() = %#v, want %#v", got, want)

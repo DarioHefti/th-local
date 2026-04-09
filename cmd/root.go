@@ -113,6 +113,10 @@ func Execute() {
 func normalizeArgs(args []string) []string {
 	normalized := make([]string, 0, len(args))
 	for _, arg := range args {
+		if arg == "--version" {
+			normalized = append(normalized, "version")
+			continue
+		}
 		if arg == "-log" {
 			normalized = append(normalized, "--log")
 			continue

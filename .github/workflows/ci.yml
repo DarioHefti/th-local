@@ -101,9 +101,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          .\th.exe --version
+          .\th.exe version
 
       - name: Verify (Unix)
         if: runner.os != 'Windows'
         run: |
-          ./th --version || true
+          ./th version
