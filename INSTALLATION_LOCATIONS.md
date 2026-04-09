@@ -6,7 +6,9 @@ Installers now download both the CLI binary and the Gemma GGUF during setup.
 
 The local Gemma runtime now uses an in-process `llama.cpp` bridge rather than a local HTTP server process.
 
-## Linux / macOS (`scripts/install.sh`)
+Current prebuilt release assets are published for Linux amd64, macOS arm64, and Windows amd64. Other platform or architecture combinations should use a source build.
+
+## Linux amd64 / macOS arm64 (`scripts/install.sh`)
 
 | Item | Location |
 |------|----------|
@@ -93,6 +95,7 @@ The installer automatically adds the installation directory to your user PATH. Y
 
 For source builds, the direct bridge uses the checked-out `third_party/llama.cpp` tree and the generated static libraries under its platform build directory.
 
+- If you cloned without `--recursive`, run `git submodule update --init --recursive` before building
 - Windows: build with `powershell -ExecutionPolicy Bypass -File scripts/build-llama.ps1`
 - macOS/Linux: build with `bash ./scripts/build-llama.sh`
 - `make build` and `make test` run the native build automatically

@@ -21,10 +21,6 @@ jobs:
             goos: linux
             goarch: amd64
             asset_name: th-linux-amd64
-          - runs-on: macos-13
-            goos: darwin
-            goarch: amd64
-            asset_name: th-darwin-amd64
           - runs-on: macos-14
             goos: darwin
             goarch: arm64

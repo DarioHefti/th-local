@@ -75,6 +75,18 @@ function Get-Architecture {
     }
 }
 
+function Test-SupportedReleaseTarget {
+    param(
+        [string]$Os,
+        [string]$Arch
+    )
+
+    switch ("$Os/$Arch") {
+        "windows/amd64" { return $true }
+        default { return $false }
+    }
+}
+
 function Add-ToPath {
     param([string]$Path)
     
@@ -228,6 +240,12 @@ function Main {
         $arch = Get-Architecture
         
         if (-not $arch) {
+            exit 1
+        }
+
+        if (-not (Test-SupportedReleaseTarget -Os $os -Arch $arch)) {
+            Write-ErrorMsg "No prebuilt release is published for $os/$arch"
+            Write-ErrorMsg "Use the source build instructions in README.md instead"
             exit 1
         }
         

@@ -6,7 +6,15 @@ Get shell commands from the local Gemma model directly in your terminal.
 
 The installer downloads the `th` binary and the Gemma IQ2_M GGUF from Hugging Face, then runs the local model through an in-process `llama.cpp` bridge.
 
-### macOS/Linux
+Prebuilt release binaries are currently published for:
+
+- Linux amd64
+- macOS arm64
+- Windows amd64
+
+For other platform and architecture combinations, build from source.
+
+### Linux amd64 / macOS arm64
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/DarioHefti/th-local/refs/heads/main/scripts/install.sh | bash
@@ -20,12 +28,31 @@ irm https://raw.githubusercontent.com/DarioHefti/th-local/refs/heads/main/script
 
 ### From Source
 
+Initialize the vendored `llama.cpp` checkout first if you cloned without `--recursive`:
+
+```bash
+git submodule update --init --recursive
+```
+
+### From Source on macOS/Linux/WSL
+
 ```bash
 make build
 make model
 ```
 
 `make build` runs the native `llama.cpp` build first and then builds `th`. `make model` downloads the GGUF into the managed per-user model directory.
+
+### From Source on Windows
+
+Use PowerShell with a MinGW-w64 toolchain available on `PATH`.
+
+```powershell
+git submodule update --init --recursive
+powershell -ExecutionPolicy Bypass -File scripts/build-llama.ps1
+powershell -ExecutionPolicy Bypass -File scripts/download-model.ps1
+go build -ldflags "-X github.com/DarioHefti/th-local/cmd.Version=dev" -o th.exe .
+```
 
 ### Building on WSL
 
@@ -35,7 +62,8 @@ Use a Linux shell inside WSL, not PowerShell, and install the native toolchain f
 sudo apt update
 sudo apt install -y build-essential cmake git pkg-config
 
-cd /mnt/c/Users/heda/Documents/dev/th
+cd /mnt/c/Users/heda/Documents/dev/th-local
+git submodule update --init --recursive
 make build
 make model
 make test
@@ -79,6 +107,7 @@ th --config
 
 The local runtime uses a direct `llama.cpp` bridge. For source builds, build the native libraries with the included script or just use `make build` / `make test`.
 
+- If you cloned without `--recursive`, run `git submodule update --init --recursive` before building
 - Windows: `powershell -ExecutionPolicy Bypass -File scripts/build-llama.ps1`
 - macOS/Linux: `bash ./scripts/build-llama.sh`
 - `make build` and `make test` run the native build automatically
@@ -125,4 +154,4 @@ git tag v1.0.0
 git push --tags
 ```
 
-This will trigger the release workflow which builds binaries for Linux, macOS, and Windows.
+This will trigger the release workflow which currently publishes Linux amd64, macOS arm64, and Windows amd64 binaries.

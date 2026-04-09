@@ -107,6 +107,22 @@ get_arch() {
     esac
 }
 
+ensure_supported_release_target() {
+    local os="$1"
+    local arch="$2"
+
+    case "$os/$arch" in
+        linux/amd64|darwin/arm64)
+            return 0
+            ;;
+        *)
+            log_error "No prebuilt release is published for $os/$arch"
+            log_error "Use the source build instructions in README.md instead"
+            exit 1
+            ;;
+    esac
+}
+
 get_latest_version() {
     local version
     version=$(curl -sSL --fail --connect-timeout 10 "https://api.github.com/repos/$REPO/releases/latest" | grep -o '"tag_name": "v[^"]*"' | cut -d'"' -f4 | sed 's/v//')
@@ -258,6 +274,7 @@ main() {
     
         os=$(get_os)
         arch=$(get_arch)
+        ensure_supported_release_target "$os" "$arch"
     
         log_info "Fetching latest version..."
         version=$(get_latest_version) || {
