@@ -33,6 +33,12 @@ if [[ ! -d "$LLAMA_DIR" ]]; then
     exit 1
 fi
 
+if [[ ! -f "$LLAMA_DIR/CMakeLists.txt" ]]; then
+    log_error "llama.cpp sources are missing at $LLAMA_DIR"
+    log_error "Initialize submodules with: git submodule update --init --recursive"
+    exit 1
+fi
+
 log_info "Configuring llama.cpp native libraries in $BUILD_DIR"
 cmake -S "$LLAMA_DIR" -B "$BUILD_DIR" -G "$GENERATOR" \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \

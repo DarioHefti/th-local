@@ -36,6 +36,12 @@ if (-not (Test-Path $LlamaDir)) {
     exit 1
 }
 
+if (-not (Test-Path (Join-Path $LlamaDir "CMakeLists.txt"))) {
+    Write-ErrorMsg "llama.cpp sources are missing at $LlamaDir"
+    Write-ErrorMsg "Initialize submodules with: git submodule update --init --recursive"
+    exit 1
+}
+
 if ($Clean -and (Test-Path $BuildDir)) {
     Write-Info "Removing existing build directory $BuildDir"
     Remove-Item $BuildDir -Recurse -Force
