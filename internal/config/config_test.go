@@ -155,6 +155,59 @@ func TestLoadLocalConfigAppliesDefaults(t *testing.T) {
 	if loaded.LocalThreads <= 0 {
 		t.Fatalf("LocalThreads: got %d, want positive value", loaded.LocalThreads)
 	}
+	if loaded.PromptFormat != DefaultPromptFormat {
+		t.Fatalf("PromptFormat: got %q, want %q", loaded.PromptFormat, DefaultPromptFormat)
+	}
+}
+
+func TestPromptFormatPreservedOnSaveLoad(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origConfigDir := configDir
+	origConfigPath := configPath
+	configDir = tmpDir
+	configPath = filepath.Join(tmpDir, "config.json")
+	defer func() {
+		configDir = origConfigDir
+		configPath = origConfigPath
+	}()
+
+	cfg := &Config{
+		Provider:       ProviderLocal,
+		Model:          DefaultLocalModel,
+		LocalModelPath: filepath.Join(tmpDir, "custom-model.gguf"),
+		PromptFormat:   PromptFormatChatML,
+	}
+
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if loaded.PromptFormat != PromptFormatChatML {
+		t.Fatalf("PromptFormat: got %q, want %q", loaded.PromptFormat, PromptFormatChatML)
+	}
+	if loaded.LocalModelPath != cfg.LocalModelPath {
+		t.Fatalf("LocalModelPath: got %q, want %q", loaded.LocalModelPath, cfg.LocalModelPath)
+	}
+}
+
+func TestIsValidPromptFormat(t *testing.T) {
+	for _, f := range ValidPromptFormats {
+		if !IsValidPromptFormat(f) {
+			t.Errorf("IsValidPromptFormat(%q) = false, want true", f)
+		}
+	}
+	if IsValidPromptFormat("nonexistent") {
+		t.Error("IsValidPromptFormat(\"nonexistent\") = true, want false")
+	}
+	if IsValidPromptFormat("") {
+		t.Error("IsValidPromptFormat(\"\") = true, want false")
+	}
 }
 
 func TestLoadNotFound(t *testing.T) {

@@ -17,9 +17,10 @@ const (
 )
 
 type localGenerator struct {
-	modelPath   string
-	contextSize int
-	threads     int
+	modelPath    string
+	contextSize  int
+	threads      int
+	promptFormat string
 
 	mu     sync.Mutex
 	engine *llamacpp.Model
@@ -37,10 +38,11 @@ func newLocalGenerator(cfg *config.Config) (Generator, error) {
 	}
 
 	return &localGenerator{
-		modelPath:   modelPath,
-		contextSize: cfg.LocalContextSize,
-		threads:     cfg.LocalThreads,
-		engine:      engine,
+		modelPath:    modelPath,
+		contextSize:  cfg.LocalContextSize,
+		threads:      cfg.LocalThreads,
+		promptFormat: cfg.PromptFormat,
+		engine:       engine,
 	}, nil
 }
 
@@ -51,7 +53,7 @@ func (g *localGenerator) GetCommand(ctx context.Context, systemPrompt, userPromp
 	default:
 	}
 
-	prompt := formatGemmaPrompt(systemPrompt, userPrompt)
+	prompt := FormatPrompt(g.promptFormat, systemPrompt, userPrompt)
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -61,5 +63,5 @@ func (g *localGenerator) GetCommand(ctx context.Context, systemPrompt, userPromp
 		return "", fmt.Errorf("running local inference: %w", err)
 	}
 
-	return cleanupCommandOutput(stripGemmaTurnMarkers(response)), nil
+	return cleanupCommandOutput(stripTurnMarkers(response)), nil
 }

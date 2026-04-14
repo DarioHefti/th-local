@@ -80,7 +80,7 @@ Examples:
 		})
 
 		if logPrompt {
-			output.PrintPrompt(llm.BuildPrompt(systemPrompt, query))
+			output.PrintPrompt(llm.BuildPromptWithFormat(cfg.PromptFormat, systemPrompt, query))
 		}
 
 		command, err := llmClient.GetCommand(ctx, systemPrompt, query)
@@ -131,12 +131,21 @@ func runSetupWizard() error {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("Model: local Gemma 4 IQ2_M")
-	fmt.Println("th only uses the local Gemma GGUF through the built-in llama.cpp bridge.")
+	existing, _ := config.Load()
+
+	fmt.Println("th uses a local GGUF model through the built-in llama.cpp bridge.")
 	fmt.Println()
 
+	if existing != nil && existing.LocalModelPath != "" {
+		fmt.Printf("  Current model path:    %s\n", existing.LocalModelPath)
+		fmt.Printf("  Current prompt format: %s\n", existing.PromptFormat)
+		fmt.Println()
+	}
+
 	autoDetectMessage := "Model path (press Enter to auto-detect the managed th model location): "
-	if managedPath, err := config.DefaultManagedModelPath(); err == nil {
+	if existing != nil && existing.LocalModelPath != "" {
+		autoDetectMessage = fmt.Sprintf("Model path (press Enter to keep %s): ", existing.LocalModelPath)
+	} else if managedPath, err := config.DefaultManagedModelPath(); err == nil {
 		autoDetectMessage = fmt.Sprintf("Model path (press Enter to auto-detect %s): ", managedPath)
 	}
 
@@ -144,19 +153,69 @@ func runSetupWizard() error {
 	modelPath, _ := reader.ReadString('\n')
 	modelPath = strings.TrimSpace(modelPath)
 
+	if modelPath == "" && existing != nil {
+		modelPath = existing.LocalModelPath
+	}
+
+	fmt.Println()
+	fmt.Println("Prompt format determines how the prompt is structured for your model.")
+	fmt.Println("  1) gemma   - Gemma models (default)")
+	fmt.Println("  2) chatml  - ChatML models (Qwen, Yi, Mistral-Instruct, etc.)")
+	fmt.Println("  3) llama3  - Llama 3 / 3.1 / 3.2 models")
+	fmt.Println("  4) raw     - Generic markdown format (works as fallback for most models)")
+
+	currentFormat := config.DefaultPromptFormat
+	if existing != nil && existing.PromptFormat != "" {
+		currentFormat = existing.PromptFormat
+	}
+	fmt.Printf("Prompt format (press Enter to keep %s): ", currentFormat)
+	formatInput, _ := reader.ReadString('\n')
+	formatInput = strings.TrimSpace(formatInput)
+
+	promptFormat := currentFormat
+	switch formatInput {
+	case "1", "gemma":
+		promptFormat = config.PromptFormatGemma
+	case "2", "chatml":
+		promptFormat = config.PromptFormatChatML
+	case "3", "llama3":
+		promptFormat = config.PromptFormatLlama3
+	case "4", "raw":
+		promptFormat = config.PromptFormatRaw
+	case "":
+		// keep current
+	default:
+		if config.IsValidPromptFormat(formatInput) {
+			promptFormat = formatInput
+		} else {
+			fmt.Printf("Unknown format %q, using %s\n", formatInput, currentFormat)
+		}
+	}
+
 	cfg := &config.Config{
 		Provider:       config.ProviderLocal,
 		Model:          config.DefaultLocalModel,
 		LocalModelPath: modelPath,
+		PromptFormat:   promptFormat,
 	}
 
 	if err := config.Save(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
+	fmt.Println()
 	output.PrintSuccess(fmt.Sprintf("Configuration saved to %s", config.ConfigPath()))
+	fmt.Printf("  Model path:    %s\n", describeModelPath(cfg.LocalModelPath))
+	fmt.Printf("  Prompt format: %s\n", cfg.PromptFormat)
 
 	return nil
+}
+
+func describeModelPath(path string) string {
+	if path == "" {
+		return "(auto-detect)"
+	}
+	return path
 }
 
 func validateRootArgs(cmd *cobra.Command, args []string) error {
