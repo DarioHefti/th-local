@@ -3,8 +3,8 @@ param(
 	[switch]$Force
 )
 
-$ModelName = "google_gemma-4-E2B-it-IQ2_M.gguf"
-$ModelUrl = "https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-IQ2_M.gguf?download=true"
+$ModelName = "LFM3-1.7B-Q4_K_M.gguf"
+$ModelUrl = "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LFM3-1.7B-Q4_K_M.gguf?download=true"
 $MaxRetries = 3
 $RetryDelay = 2
 

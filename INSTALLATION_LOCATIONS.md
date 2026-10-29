@@ -2,9 +2,9 @@
 
 This document explains where files are installed when running the installer scripts.
 
-Installers now download both the CLI binary and the Gemma GGUF during setup.
+Installers download both the CLI binary and LiquidAI's LFM3-1.7B Q4_K_M (4-bit) GGUF during setup. The CLI also downloads a missing default model on first use.
 
-The local Gemma runtime now uses an in-process `llama.cpp` bridge rather than a local HTTP server process.
+The local LFM3 runtime uses an in-process `llama.cpp` v0.8.0 bridge rather than MLX or a local HTTP server process.
 
 Current prebuilt release assets are published for Linux amd64, macOS arm64, and Windows amd64. Other platform or architecture combinations should use a source build.
 
@@ -13,8 +13,8 @@ Current prebuilt release assets are published for Linux amd64, macOS arm64, and 
 | Item | Location |
 |------|----------|
 | Binary | `~/.local/bin/th` |
-| Model (Linux) | `~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf` |
-| Model (macOS) | `~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf` |
+| Model (Linux) | `~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf` |
+| Model (macOS) | `~/Library/Caches/th/models/LFM3-1.7B-Q4_K_M.gguf` |
 | Custom directory | User-specified via `-d` or `--dir` option |
 | Custom model directory | User-specified via `-m` or `--model-dir` option |
 
@@ -24,8 +24,8 @@ Current prebuilt release assets are published for Linux amd64, macOS arm64, and 
 # Default installation
 ./scripts/install.sh
 # Installs binary to: ~/.local/bin/th
-# Installs model to Linux: ~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
-# Installs model to macOS: ~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
+# Installs model to Linux: ~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf
+# Installs model to macOS: ~/Library/Caches/th/models/LFM3-1.7B-Q4_K_M.gguf
 
 # Custom directory
 ./scripts/install.sh -d /usr/local/bin
@@ -33,7 +33,7 @@ Current prebuilt release assets are published for Linux amd64, macOS arm64, and 
 
 # Custom model directory
 ./scripts/install.sh -m "$HOME/.local/share/th/models"
-# Installs model to: ~/.local/share/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
+# Installs model to: ~/.local/share/th/models/LFM3-1.7B-Q4_K_M.gguf
 ```
 
 ### PATH
@@ -57,7 +57,7 @@ source ~/.zshrc
 | Item | Location |
 |------|----------|
 | Binary | `%LOCALAPPDATA%\th\bin\th.exe` |
-| Model | `%LOCALAPPDATA%\th\models\google_gemma-4-E2B-it-IQ2_M.gguf` |
+| Model | `%LOCALAPPDATA%\th\models\LFM3-1.7B-Q4_K_M.gguf` |
 | Custom directory | User-specified via `-InstallDir` parameter |
 | Custom model directory | User-specified via `-ModelDir` parameter |
 | PATH | Installation directory is added to user PATH |
@@ -68,7 +68,7 @@ source ~/.zshrc
 # Default installation
 .\scripts\install.ps1
 # Installs binary to: C:\Users\<username>\AppData\Local\th\bin\th.exe
-# Installs model to: C:\Users\<username>\AppData\Local\th\models\google_gemma-4-E2B-it-IQ2_M.gguf
+# Installs model to: C:\Users\<username>\AppData\Local\th\models\LFM3-1.7B-Q4_K_M.gguf
 
 # Custom directory
 .\scripts\install.ps1 -InstallDir "C:\Program Files\th"
@@ -76,7 +76,7 @@ source ~/.zshrc
 
 # Custom model directory
 .\scripts\install.ps1 -ModelDir "D:\models\th"
-# Installs model to: D:\models\th\google_gemma-4-E2B-it-IQ2_M.gguf
+# Installs model to: D:\models\th\LFM3-1.7B-Q4_K_M.gguf
 ```
 
 ### PATH
@@ -87,13 +87,16 @@ The installer automatically adds the installation directory to your user PATH. Y
 
 ## Local Model Discovery
 
-`th` resolves the Gemma GGUF in this order:
+`th` resolves the LFM3 GGUF in this order:
 
 1. `local_model_path` from the saved config
 2. `TH_MODEL_PATH`
 3. Managed model path in the user cache directory
-4. `./model/google_gemma-4-E2B-it-IQ2_M.gguf`
-5. `model/google_gemma-4-E2B-it-IQ2_M.gguf` next to the executable
+4. Legacy cache location: `~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf`
+5. `./model/LFM3-1.7B-Q4_K_M.gguf`
+6. `model/LFM3-1.7B-Q4_K_M.gguf` next to the executable
+
+If no default copy exists, `th` downloads it to the managed user-cache path. Explicit overrides must point to existing files and never silently select a different model. Leave `local_model_path` unset for portable configuration.
 
 For source builds, the direct bridge uses the checked-out `third_party/llama.cpp` tree and the generated static libraries under its platform build directory.
 
@@ -110,8 +113,8 @@ For source builds, the direct bridge uses the checked-out `third_party/llama.cpp
 
 ```bash
 rm ~/.local/bin/th
-rm ~/.cache/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
-rm ~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
+rm ~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf
+rm ~/Library/Caches/th/models/LFM3-1.7B-Q4_K_M.gguf
 # Remove from PATH manually if added
 ```
 
@@ -122,7 +125,7 @@ rm ~/Library/Caches/th/models/google_gemma-4-E2B-it-IQ2_M.gguf
 Remove-Item "$env:LOCALAPPDATA\th\bin\th.exe" -Recurse -Force
 
 # Remove the model
-Remove-Item "$env:LOCALAPPDATA\th\models\google_gemma-4-E2B-it-IQ2_M.gguf" -Force
+Remove-Item "$env:LOCALAPPDATA\th\models\LFM3-1.7B-Q4_K_M.gguf" -Force
 
 # Remove from PATH (manual)
 # Open System Properties → Environment Variables → User variables → Path

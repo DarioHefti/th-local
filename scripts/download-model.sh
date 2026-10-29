@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-MODEL_NAME="google_gemma-4-E2B-it-IQ2_M.gguf"
-MODEL_URL="https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-IQ2_M.gguf?download=true"
+MODEL_NAME="LFM3-1.7B-Q4_K_M.gguf"
+MODEL_URL="https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LFM3-1.7B-Q4_K_M.gguf?download=true"
 MODEL_DIR="${MODEL_DIR:-}"
 FORCE=false
 MAX_RETRIES=3
@@ -30,7 +30,7 @@ usage() {
 	cat <<EOF
 Usage: download-model.sh [OPTIONS]
 
-Download the managed Gemma GGUF for th.
+Download the managed LiquidAI LFM3-1.7B Q4_K_M GGUF for th.
 
 OPTIONS:
 	-d, --dir DIR       Model directory (default: $default_model_dir_value)

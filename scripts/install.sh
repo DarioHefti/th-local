@@ -3,8 +3,8 @@ set -e
 
 REPO="DarioHefti/th-local"
 BINARY_NAME="th"
-MODEL_NAME="google_gemma-4-E2B-it-IQ2_M.gguf"
-MODEL_URL="https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-IQ2_M.gguf?download=true"
+MODEL_NAME="LFM3-1.7B-Q4_K_M.gguf"
+MODEL_URL="https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LFM3-1.7B-Q4_K_M.gguf?download=true"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 MODEL_DIR="${MODEL_DIR:-}"
 FORCE=false

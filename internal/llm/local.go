@@ -13,14 +13,12 @@ import (
 
 const (
 	localPredictTokens = 128
-	localBatchSize     = 512
 )
 
 type localGenerator struct {
-	modelPath    string
-	contextSize  int
-	threads      int
-	promptFormat string
+	modelPath   string
+	contextSize int
+	threads     int
 
 	mu     sync.Mutex
 	engine *llamacpp.Model
@@ -38,11 +36,10 @@ func newLocalGenerator(cfg *config.Config) (Generator, error) {
 	}
 
 	return &localGenerator{
-		modelPath:    modelPath,
-		contextSize:  cfg.LocalContextSize,
-		threads:      cfg.LocalThreads,
-		promptFormat: cfg.PromptFormat,
-		engine:       engine,
+		modelPath:   modelPath,
+		contextSize: cfg.LocalContextSize,
+		threads:     cfg.LocalThreads,
+		engine:      engine,
 	}, nil
 }
 
@@ -53,7 +50,7 @@ func (g *localGenerator) GetCommand(ctx context.Context, systemPrompt, userPromp
 	default:
 	}
 
-	prompt := FormatPrompt(g.promptFormat, systemPrompt, userPrompt)
+	prompt := BuildPrompt(systemPrompt, userPrompt)
 
 	g.mu.Lock()
 	defer g.mu.Unlock()

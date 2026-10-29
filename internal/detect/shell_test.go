@@ -114,6 +114,18 @@ func TestEnvironmentSystemPrompt(t *testing.T) {
 	}
 }
 
+func TestSystemPromptForMacOSUsesExistingTerminal(t *testing.T) {
+	prompt := (&Environment{OS: "darwin", Shell: "zsh", CWD: "/private/example"}).SystemPrompt(PromptOptions{})
+	for _, want := range []string{"macOS", "plain command text, one line", "use . unless specified", "quote spaces", "not a shell invocation"} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+	if strings.Count(prompt, "zsh") != 1 || strings.Contains(prompt, "/private/example") {
+		t.Fatal("prompt repeats shell name or embeds an unnecessary absolute path")
+	}
+}
+
 func TestEnvironmentSystemPromptForPowerShell(t *testing.T) {
 	env := &Environment{
 		OS:           "windows",

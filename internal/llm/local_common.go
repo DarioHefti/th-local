@@ -11,6 +11,19 @@ import (
 
 func resolveLocalModelPath(explicitPath string) (string, error) {
 	envPath := strings.TrimSpace(os.Getenv("TH_MODEL_PATH"))
+	for _, override := range []string{explicitPath, envPath} {
+		if strings.TrimSpace(override) != "" {
+			absolutePath, err := filepath.Abs(override)
+			if err != nil {
+				return "", err
+			}
+			info, err := os.Stat(absolutePath)
+			if err != nil || info.IsDir() {
+				return "", fmt.Errorf("configured model not found at %s; provide an existing %s or clear the override to download the default model", absolutePath, config.DefaultLocalModelFile)
+			}
+			return absolutePath, nil
+		}
+	}
 	managedPath, _ := config.DefaultManagedModelPath()
 	legacyManagedPath, _ := config.LegacyManagedModelPath()
 
@@ -18,7 +31,17 @@ func resolveLocalModelPath(explicitPath string) (string, error) {
 	executablePath, _ := os.Executable()
 	executableDir := filepath.Dir(executablePath)
 
-	return findLocalModelPath(explicitPath, envPath, managedPath, legacyManagedPath, cwd, executableDir)
+	if path, err := findLocalModelPath("", "", managedPath, legacyManagedPath, cwd, executableDir); err == nil {
+		return path, nil
+	}
+	if managedPath == "" {
+		return "", fmt.Errorf("cannot resolve the default model cache directory")
+	}
+	fmt.Fprintf(os.Stderr, "Downloading %s to the user model cache...\n", config.DefaultLocalModelFile)
+	if err := downloadLocalModel(managedPath, config.DefaultLocalModelURL); err != nil {
+		return "", err
+	}
+	return managedPath, nil
 }
 
 func findLocalModelPath(explicitPath, envPath, managedPath, legacyManagedPath, cwd, executableDir string) (string, error) {
@@ -55,48 +78,18 @@ func findLocalModelPath(explicitPath, envPath, managedPath, legacyManagedPath, c
 	return "", fmt.Errorf("local model not found; set local_model_path in config or TH_MODEL_PATH, or install %s at %s (compatibility fallback: %s)", config.DefaultLocalModelFile, managedPath, compatibilityPath)
 }
 
-func formatGemmaPrompt(systemPrompt, userPrompt string) string {
-	return fmt.Sprintf("<bos><|turn>system\n%s<turn|>\n<|turn>user\n%s<turn|>\n<|turn>model\n", strings.TrimSpace(systemPrompt), strings.TrimSpace(userPrompt))
-}
-
-func formatChatMLPrompt(systemPrompt, userPrompt string) string {
-	return fmt.Sprintf("<|im_start|>system\n%s<|im_end|>\n<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n", strings.TrimSpace(systemPrompt), strings.TrimSpace(userPrompt))
-}
-
-func formatLlama3Prompt(systemPrompt, userPrompt string) string {
-	return fmt.Sprintf("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n", strings.TrimSpace(systemPrompt), strings.TrimSpace(userPrompt))
-}
-
-func formatRawPrompt(systemPrompt, userPrompt string) string {
-	return fmt.Sprintf("### System:\n%s\n\n### User:\n%s\n\n### Assistant:\n", strings.TrimSpace(systemPrompt), strings.TrimSpace(userPrompt))
-}
-
-func FormatPrompt(format, systemPrompt, userPrompt string) string {
-	switch format {
-	case config.PromptFormatChatML:
-		return formatChatMLPrompt(systemPrompt, userPrompt)
-	case config.PromptFormatLlama3:
-		return formatLlama3Prompt(systemPrompt, userPrompt)
-	case config.PromptFormatRaw:
-		return formatRawPrompt(systemPrompt, userPrompt)
-	default:
-		return formatGemmaPrompt(systemPrompt, userPrompt)
-	}
-}
-
 func BuildPrompt(systemPrompt, userPrompt string) string {
-	return formatGemmaPrompt(systemPrompt, userPrompt)
-}
-
-func BuildPromptWithFormat(format, systemPrompt, userPrompt string) string {
-	return FormatPrompt(format, systemPrompt, userPrompt)
+	// Match LiquidAI's text-only chat template with enable_thinking=false:
+	// shell commands need a direct answer, not a reasoning preamble.
+	prompt := "<|startoftext|>"
+	if system := strings.TrimSpace(systemPrompt); system != "" {
+		prompt += "<|im_start|>system\n" + system + "<|im_end|>\n"
+	}
+	return prompt + "<|im_start|>user\n" + strings.TrimSpace(userPrompt) + "<|im_end|>\n<|im_start|>assistant\n<think></think>"
 }
 
 var stopMarkers = []string{
-	"<turn|>", "<|turn>user", "<|turn>system", "<|turn>model",
 	"<|im_end|>", "<|im_start|>",
-	"<|eot_id|>", "<|start_header_id|>", "<|end_header_id|>",
-	"### User:", "### System:", "### Assistant:",
 }
 
 func stripTurnMarkers(content string) string {
@@ -107,8 +100,4 @@ func stripTurnMarkers(content string) string {
 		}
 	}
 	return strings.TrimSpace(trimmed)
-}
-
-func stripGemmaTurnMarkers(content string) string {
-	return stripTurnMarkers(content)
 }

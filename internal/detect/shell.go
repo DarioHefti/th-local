@@ -402,10 +402,19 @@ func detectGit() (branch, status string) {
 func (e *Environment) SystemPrompt(options PromptOptions) string {
 	shellInstructions := shellStyleInstructions(e.OS, e.Shell)
 
-	prompt := fmt.Sprintf(`Return one shell command.
-Context:
-- OS: %s
-	- Shell: %s`, e.OS, e.Shell)
+	platform := e.OS
+	if platform == "darwin" {
+		platform = "macOS"
+	}
+	prompt := fmt.Sprintf(`Write a single command for the user's %s terminal.
+
+Output format: plain command text, one line, no explanation.
+Paths: use . unless specified; quote spaces; preserve names.
+Tools: %s utilities. Use find for filenames, grep for text, rmdir for empty directories.
+The existing terminal runs %s. Return the command itself, not a shell invocation.`, platform, platform, e.Shell)
+	if e.Shell == "powershell" || e.Shell == "pwsh" || e.Shell == "cmd" {
+		prompt = strings.Replace(prompt, "Use find for filenames, grep for text, rmdir for empty directories.", "Use native commands for the existing shell.", 1)
+	}
 
 	if options.IncludeGit && e.GitBranch != "" {
 		prompt += fmt.Sprintf("\n- Git branch: %s", e.GitBranch)
@@ -420,12 +429,9 @@ Context:
 		}
 	}
 
-	prompt += fmt.Sprintf(`
-Rules:
-- Output only the raw command.
-- No explanation, comments, markdown, or backticks.
-- Use syntax valid for %s only.
-%s`, e.Shell, shellInstructions)
+	if e.OS != "darwin" || e.Shell != "zsh" {
+		prompt += "\n" + shellInstructions
+	}
 
 	return prompt
 }
@@ -440,8 +446,7 @@ func shellStyleInstructions(goos, shell string) string {
 		return `- Use cmd.exe syntax only.
 - Do not return PowerShell or POSIX shell syntax.`
 	case "bash", "sh", "zsh", "fish", "dash", "ksh":
-		return fmt.Sprintf(`- Use %s-compatible shell syntax only.
-- Do not return Windows cmd.exe or PowerShell syntax.`, shell)
+		return `- Do not return Windows cmd.exe or PowerShell syntax.`
 	default:
 		return fmt.Sprintf(`- Use syntax that is valid for %s on %s.`, shell, goos)
 	}

@@ -40,7 +40,7 @@ void * th_llama_model_load(const char * model_path, int n_ctx, int threads, int 
 
         llama_model_params model_params = llama_model_default_params();
         model_params.n_gpu_layers = n_gpu_layers;
-        model_params.use_mmap = true;
+        model_params.load_mode = LLAMA_LOAD_MODE_MMAP;
 
         llama_model * model = llama_model_load_from_file(model_path, model_params);
         if (model == nullptr) {
@@ -80,10 +80,14 @@ int th_llama_model_predict(void * raw_handle, const char * prompt, int max_token
         return 1;
     }
 
-    llama_sampler * smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
-    llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
-
     const llama_vocab * vocab = llama_model_get_vocab(handle->model);
+    llama_sampler * smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
+    // LiquidAI's recommended general-purpose sampling parameters.
+    llama_sampler_chain_add(smpl, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), 64, 1.1f, 0.0f, 0.0f));
+    llama_sampler_chain_add(smpl, llama_sampler_init_top_k(50));
+    llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.1f));
+    llama_sampler_chain_add(smpl, llama_sampler_init_dist(42));
+
     const int prompt_len = static_cast<int>(std::strlen(prompt));
     const int n_prompt_tokens = -llama_tokenize(vocab, prompt, prompt_len, nullptr, 0, true, true);
     if (n_prompt_tokens <= 0) {
@@ -141,7 +145,6 @@ int th_llama_model_predict(void * raw_handle, const char * prompt, int max_token
         }
 
         response.append(piece.data(), static_cast<size_t>(piece_len));
-        llama_sampler_accept(smpl, next_token);
         batch = llama_batch_get_one(&next_token, 1);
     }
 

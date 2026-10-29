@@ -61,7 +61,7 @@ func TestSaveAndLoad(t *testing.T) {
 	cfg := &Config{
 		Provider:         ProviderLocal,
 		Model:            DefaultLocalModel,
-		LocalModelPath:   filepath.Join(tmpDir, "google_gemma-4-E2B-it-IQ2_M.gguf"),
+		LocalModelPath:   filepath.Join(tmpDir, DefaultLocalModelFile),
 		LocalContextSize: 4096,
 		LocalThreads:     8,
 		LocalGPULayers:   0,
@@ -155,12 +155,9 @@ func TestLoadLocalConfigAppliesDefaults(t *testing.T) {
 	if loaded.LocalThreads <= 0 {
 		t.Fatalf("LocalThreads: got %d, want positive value", loaded.LocalThreads)
 	}
-	if loaded.PromptFormat != DefaultPromptFormat {
-		t.Fatalf("PromptFormat: got %q, want %q", loaded.PromptFormat, DefaultPromptFormat)
-	}
 }
 
-func TestPromptFormatPreservedOnSaveLoad(t *testing.T) {
+func TestCustomModelPathPreservedOnSaveLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	origConfigDir := configDir
@@ -176,7 +173,6 @@ func TestPromptFormatPreservedOnSaveLoad(t *testing.T) {
 		Provider:       ProviderLocal,
 		Model:          DefaultLocalModel,
 		LocalModelPath: filepath.Join(tmpDir, "custom-model.gguf"),
-		PromptFormat:   PromptFormatChatML,
 	}
 
 	if err := Save(cfg); err != nil {
@@ -188,25 +184,16 @@ func TestPromptFormatPreservedOnSaveLoad(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if loaded.PromptFormat != PromptFormatChatML {
-		t.Fatalf("PromptFormat: got %q, want %q", loaded.PromptFormat, PromptFormatChatML)
-	}
 	if loaded.LocalModelPath != cfg.LocalModelPath {
 		t.Fatalf("LocalModelPath: got %q, want %q", loaded.LocalModelPath, cfg.LocalModelPath)
 	}
 }
 
-func TestIsValidPromptFormat(t *testing.T) {
-	for _, f := range ValidPromptFormats {
-		if !IsValidPromptFormat(f) {
-			t.Errorf("IsValidPromptFormat(%q) = false, want true", f)
-		}
-	}
-	if IsValidPromptFormat("nonexistent") {
-		t.Error("IsValidPromptFormat(\"nonexistent\") = true, want false")
-	}
-	if IsValidPromptFormat("") {
-		t.Error("IsValidPromptFormat(\"\") = true, want false")
+func TestConfigUsesSingleModel(t *testing.T) {
+	cfg := &Config{Provider: "old-provider", Model: "old-model"}
+	cfg.applyDefaults()
+	if cfg.Provider != ProviderLocal || cfg.Model != DefaultLocalModel {
+		t.Fatalf("config did not select the supported model: %+v", cfg)
 	}
 }
 

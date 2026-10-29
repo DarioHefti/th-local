@@ -25,8 +25,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "th [query]",
-	Short: "Get shell commands from the local Gemma model",
-	Long: `th (Terminal Help) - Get shell commands using the local Gemma model
+	Short: "Get shell commands from the local LFM3-1.7B model",
+	Long: `th (Terminal Help) - Get shell commands using the local LFM3-1.7B Q4_K_M GGUF
 
 Examples:
   th "list all files modified today"
@@ -80,7 +80,7 @@ Examples:
 		})
 
 		if logPrompt {
-			output.PrintPrompt(llm.BuildPromptWithFormat(cfg.PromptFormat, systemPrompt, query))
+			output.PrintPrompt(llm.BuildPrompt(systemPrompt, query))
 		}
 
 		command, err := llmClient.GetCommand(ctx, systemPrompt, query)
@@ -138,7 +138,6 @@ func runSetupWizard() error {
 
 	if existing != nil && existing.LocalModelPath != "" {
 		fmt.Printf("  Current model path:    %s\n", existing.LocalModelPath)
-		fmt.Printf("  Current prompt format: %s\n", existing.PromptFormat)
 		fmt.Println()
 	}
 
@@ -157,46 +156,10 @@ func runSetupWizard() error {
 		modelPath = existing.LocalModelPath
 	}
 
-	fmt.Println()
-	fmt.Println("Prompt format determines how the prompt is structured for your model.")
-	fmt.Println("  1) gemma   - Gemma models (default)")
-	fmt.Println("  2) chatml  - ChatML models (Qwen, Yi, Mistral-Instruct, etc.)")
-	fmt.Println("  3) llama3  - Llama 3 / 3.1 / 3.2 models")
-	fmt.Println("  4) raw     - Generic markdown format (works as fallback for most models)")
-
-	currentFormat := config.DefaultPromptFormat
-	if existing != nil && existing.PromptFormat != "" {
-		currentFormat = existing.PromptFormat
-	}
-	fmt.Printf("Prompt format (press Enter to keep %s): ", currentFormat)
-	formatInput, _ := reader.ReadString('\n')
-	formatInput = strings.TrimSpace(formatInput)
-
-	promptFormat := currentFormat
-	switch formatInput {
-	case "1", "gemma":
-		promptFormat = config.PromptFormatGemma
-	case "2", "chatml":
-		promptFormat = config.PromptFormatChatML
-	case "3", "llama3":
-		promptFormat = config.PromptFormatLlama3
-	case "4", "raw":
-		promptFormat = config.PromptFormatRaw
-	case "":
-		// keep current
-	default:
-		if config.IsValidPromptFormat(formatInput) {
-			promptFormat = formatInput
-		} else {
-			fmt.Printf("Unknown format %q, using %s\n", formatInput, currentFormat)
-		}
-	}
-
 	cfg := &config.Config{
 		Provider:       config.ProviderLocal,
 		Model:          config.DefaultLocalModel,
 		LocalModelPath: modelPath,
-		PromptFormat:   promptFormat,
 	}
 
 	if err := config.Save(cfg); err != nil {
@@ -206,7 +169,6 @@ func runSetupWizard() error {
 	fmt.Println()
 	output.PrintSuccess(fmt.Sprintf("Configuration saved to %s", config.ConfigPath()))
 	fmt.Printf("  Model path:    %s\n", describeModelPath(cfg.LocalModelPath))
-	fmt.Printf("  Prompt format: %s\n", cfg.PromptFormat)
 
 	return nil
 }

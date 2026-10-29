@@ -14,18 +14,11 @@ import (
 const (
 	ProviderLocal = "local"
 
-	DefaultLocalModel     = "gemma-4-e2b-it"
+	DefaultLocalModel     = "lfm3-1.7b"
 	DefaultLocalContext   = 2048
 	DefaultLocalGPULayers = 0
-	DefaultLocalModelFile = "google_gemma-4-E2B-it-IQ2_M.gguf"
-	DefaultLocalModelURL  = "https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-IQ2_M.gguf?download=true"
-
-	PromptFormatGemma  = "gemma"
-	PromptFormatChatML = "chatml"
-	PromptFormatLlama3 = "llama3"
-	PromptFormatRaw    = "raw"
-
-	DefaultPromptFormat = PromptFormatGemma
+	DefaultLocalModelFile = "LFM3-1.7B-Q4_K_M.gguf"
+	DefaultLocalModelURL  = "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LFM3-1.7B-Q4_K_M.gguf?download=true"
 )
 
 type Config struct {
@@ -35,10 +28,7 @@ type Config struct {
 	LocalContextSize int    `json:"local_context_size,omitempty"`
 	LocalThreads     int    `json:"local_threads,omitempty"`
 	LocalGPULayers   int    `json:"local_gpu_layers,omitempty"`
-	PromptFormat     string `json:"prompt_format,omitempty"`
 }
-
-var ValidPromptFormats = []string{PromptFormatGemma, PromptFormatChatML, PromptFormatLlama3, PromptFormatRaw}
 
 var configDir = filepath.Join(xdg.ConfigHome, "th")
 var configPath = filepath.Join(configDir, "config.json")
@@ -122,21 +112,9 @@ func IsConfigNotFound(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "config not found")
 }
 
-func IsValidPromptFormat(format string) bool {
-	for _, f := range ValidPromptFormats {
-		if f == format {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *Config) applyDefaults() {
-	originalProvider := c.Provider
 	c.Provider = ProviderLocal
-	if c.Model == "" || (originalProvider != "" && originalProvider != ProviderLocal) {
-		c.Model = DefaultLocalModel
-	}
+	c.Model = DefaultLocalModel
 	if c.LocalContextSize <= 0 {
 		c.LocalContextSize = DefaultLocalContext
 	}
@@ -148,8 +126,5 @@ func (c *Config) applyDefaults() {
 	}
 	if c.LocalGPULayers < 0 {
 		c.LocalGPULayers = DefaultLocalGPULayers
-	}
-	if !IsValidPromptFormat(c.PromptFormat) {
-		c.PromptFormat = DefaultPromptFormat
 	}
 }
