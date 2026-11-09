@@ -2,9 +2,12 @@ package output
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"time"
 
 	"github.com/atotto/clipboard"
+	"golang.org/x/term"
 )
 
 func PrintCommand(cmd string, copyToClipboard bool) {
@@ -19,13 +22,44 @@ func PrintCommand(cmd string, copyToClipboard bool) {
 	}
 }
 
-// PrintThinking writes to stderr so stdout carries only the command.
-func PrintThinking(text string) {
-	fmt.Fprintf(os.Stderr, "\x1b[2m%s\x1b[0m", text)
+const thinkingFrameInterval = 300 * time.Millisecond
+
+var thinkingFrames = []string{".  ", ".. ", "..."}
+
+// ThinkingIndicator animates "thinking..." on stderr while the model reasons.
+// Stdout carries only the command.
+type ThinkingIndicator struct {
+	out   io.Writer
+	frame int
+	next  time.Time
 }
 
-func EndThinking() {
-	fmt.Fprintln(os.Stderr)
+// NewThinkingIndicator returns an indicator that stays silent when stderr is not a terminal.
+func NewThinkingIndicator() *ThinkingIndicator {
+	if !term.IsTerminal(int(os.Stderr.Fd())) {
+		return &ThinkingIndicator{}
+	}
+	return &ThinkingIndicator{out: os.Stderr}
+}
+
+// Tick runs for each generated token and advances the dots when a frame is due.
+func (t *ThinkingIndicator) Tick(string) {
+	if t.out == nil {
+		return
+	}
+	now := time.Now()
+	if now.Before(t.next) {
+		return
+	}
+	t.next = now.Add(thinkingFrameInterval)
+	fmt.Fprintf(t.out, "\r\x1b[2mthinking%s\x1b[0m", thinkingFrames[t.frame%len(thinkingFrames)])
+	t.frame++
+}
+
+func (t *ThinkingIndicator) Clear() {
+	if t.out != nil {
+		fmt.Fprint(t.out, "\r\x1b[K")
+	}
 }
 
 func PrintError(err error) {

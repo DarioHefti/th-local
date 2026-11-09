@@ -6,6 +6,7 @@ require (
 	github.com/adrg/xdg v0.5.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/spf13/cobra v1.9.1
+	golang.org/x/term v0.39.0
 )
 
 require (

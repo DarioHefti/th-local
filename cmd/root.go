@@ -65,8 +65,9 @@ Examples:
 			output.PrintPrompt(llm.BuildPrompt(systemPrompt, query))
 		}
 
-		command, err := llmClient.GetCommand(ctx, systemPrompt, query, output.PrintThinking)
-		output.EndThinking()
+		thinking := output.NewThinkingIndicator()
+		command, err := llmClient.GetCommand(ctx, systemPrompt, query, thinking.Tick)
+		thinking.Clear()
 		if err != nil {
 			return fmt.Errorf("getting command: %w", err)
 		}

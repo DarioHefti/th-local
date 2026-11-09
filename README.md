@@ -28,7 +28,7 @@ th "find large files over 100MB" --c  # copy the command to the clipboard
 th -log "create a new directory"      # print the exact prompt
 ```
 
-The model's reasoning streams to stderr while you wait, and stdout gets only the command. `th` never runs anything, so review suggestions before using them.
+`th` shows `thinking...` while the model works, and stdout gets only the command. `th` never runs anything, so review suggestions before using them.
 
 macOS runs on the GPU through Metal. Linux and Windows run on the CPU.
 
