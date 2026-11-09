@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+func useConfigPath(t *testing.T, name string) string {
+	t.Helper()
+	orig := configPath
+	configPath = filepath.Join(t.TempDir(), name)
+	t.Cleanup(func() { configPath = orig })
+	return configPath
+}
+
 func TestDefaultManagedModelPath(t *testing.T) {
 	origUserCacheDir := userCacheDir
 	userCacheDir = func() (string, error) {
@@ -46,137 +54,29 @@ func TestLegacyManagedModelPath(t *testing.T) {
 	}
 }
 
-func TestSaveAndLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	origConfigDir := configDir
-	origConfigPath := configPath
-	configDir = tmpDir
-	configPath = filepath.Join(tmpDir, "config.json")
-	defer func() {
-		configDir = origConfigDir
-		configPath = origConfigPath
-	}()
-
-	cfg := &Config{
-		Provider:         ProviderLocal,
-		Model:            DefaultLocalModel,
-		LocalModelPath:   filepath.Join(tmpDir, DefaultLocalModelFile),
-		LocalContextSize: 4096,
-		LocalThreads:     8,
-		LocalGPULayers:   0,
-	}
-
-	if err := Save(cfg); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
+func TestLoadMissingFileUsesDefaults(t *testing.T) {
+	useConfigPath(t, "nonexistent.json")
 
 	loaded, err := Load()
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if loaded.Provider != cfg.Provider {
-		t.Errorf("Provider: got %q, want %q", loaded.Provider, cfg.Provider)
-	}
-	if loaded.Model != cfg.Model {
-		t.Errorf("Model: got %q, want %q", loaded.Model, cfg.Model)
-	}
-	if loaded.LocalModelPath != cfg.LocalModelPath {
-		t.Errorf("LocalModelPath: got %q, want %q", loaded.LocalModelPath, cfg.LocalModelPath)
-	}
-	if loaded.LocalContextSize != cfg.LocalContextSize {
-		t.Errorf("LocalContextSize: got %d, want %d", loaded.LocalContextSize, cfg.LocalContextSize)
-	}
-	if loaded.LocalThreads != cfg.LocalThreads {
-		t.Errorf("LocalThreads: got %d, want %d", loaded.LocalThreads, cfg.LocalThreads)
-	}
-}
-
-func TestLoadLegacyNonLocalConfigMigratesToLocalDefaults(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	origConfigDir := configDir
-	origConfigPath := configPath
-	configDir = tmpDir
-	configPath = filepath.Join(tmpDir, "config.json")
-	defer func() {
-		configDir = origConfigDir
-		configPath = origConfigPath
-	}()
-
-	if err := os.WriteFile(configPath, []byte(`{"provider":"legacy","model":"legacy-model"}`), 0644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
-	}
-
-	loaded, err := Load()
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-
-	if loaded.Provider != ProviderLocal {
-		t.Fatalf("Provider: got %q, want %q", loaded.Provider, ProviderLocal)
-	}
-	if loaded.Model != DefaultLocalModel {
-		t.Fatalf("Model: got %q, want %q", loaded.Model, DefaultLocalModel)
-	}
-	if loaded.LocalContextSize != DefaultLocalContext {
-		t.Fatalf("LocalContextSize: got %d, want %d", loaded.LocalContextSize, DefaultLocalContext)
-	}
-}
-
-func TestLoadLocalConfigAppliesDefaults(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	origConfigDir := configDir
-	origConfigPath := configPath
-	configDir = tmpDir
-	configPath = filepath.Join(tmpDir, "config.json")
-	defer func() {
-		configDir = origConfigDir
-		configPath = origConfigPath
-	}()
-
-	if err := os.WriteFile(configPath, []byte(`{"provider":"local"}`), 0644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
-	}
-
-	loaded, err := Load()
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-
-	if loaded.Model != DefaultLocalModel {
-		t.Fatalf("Model: got %q, want %q", loaded.Model, DefaultLocalModel)
-	}
 	if loaded.LocalContextSize != DefaultLocalContext {
 		t.Fatalf("LocalContextSize: got %d, want %d", loaded.LocalContextSize, DefaultLocalContext)
 	}
 	if loaded.LocalThreads <= 0 {
 		t.Fatalf("LocalThreads: got %d, want positive value", loaded.LocalThreads)
 	}
+	if loaded.LocalGPULayers != DefaultLocalGPULayers {
+		t.Fatalf("LocalGPULayers: got %d, want %d", loaded.LocalGPULayers, DefaultLocalGPULayers)
+	}
 }
 
-func TestCustomModelPathPreservedOnSaveLoad(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	origConfigDir := configDir
-	origConfigPath := configPath
-	configDir = tmpDir
-	configPath = filepath.Join(tmpDir, "config.json")
-	defer func() {
-		configDir = origConfigDir
-		configPath = origConfigPath
-	}()
-
-	cfg := &Config{
-		Provider:       ProviderLocal,
-		Model:          DefaultLocalModel,
-		LocalModelPath: filepath.Join(tmpDir, "custom-model.gguf"),
-	}
-
-	if err := Save(cfg); err != nil {
-		t.Fatalf("Save failed: %v", err)
+func TestLoadKeepsTuning(t *testing.T) {
+	path := useConfigPath(t, "config.json")
+	if err := os.WriteFile(path, []byte(`{"local_context_size":4096,"local_threads":8,"local_gpu_layers":10}`), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
 	}
 
 	loaded, err := Load()
@@ -184,56 +84,34 @@ func TestCustomModelPathPreservedOnSaveLoad(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if loaded.LocalModelPath != cfg.LocalModelPath {
-		t.Fatalf("LocalModelPath: got %q, want %q", loaded.LocalModelPath, cfg.LocalModelPath)
+	if loaded.LocalContextSize != 4096 || loaded.LocalThreads != 8 || loaded.LocalGPULayers != 10 {
+		t.Fatalf("tuning was not preserved: %+v", loaded)
 	}
 }
 
-func TestConfigUsesSingleModel(t *testing.T) {
-	cfg := &Config{Provider: "old-provider", Model: "old-model"}
-	cfg.applyDefaults()
-	if cfg.Provider != ProviderLocal || cfg.Model != DefaultLocalModel {
-		t.Fatalf("config did not select the supported model: %+v", cfg)
+func TestLoadIgnoresRetiredModelSettings(t *testing.T) {
+	path := useConfigPath(t, "config.json")
+	if err := os.WriteFile(path, []byte(`{"provider":"legacy","model":"legacy-model","local_model_path":"/tmp/other.gguf"}`), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
 	}
-}
 
-func TestLoadNotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	origConfigDir := configDir
-	origConfigPath := configPath
-	configDir = tmpDir
-	configPath = filepath.Join(tmpDir, "nonexistent.json")
-	defer func() {
-		configDir = origConfigDir
-		configPath = origConfigPath
-	}()
-
-	_, err := Load()
-	if err == nil {
-		t.Error("Load should fail for nonexistent file")
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
 	}
-	if !IsConfigNotFound(err) {
-		t.Errorf("IsConfigNotFound should return true, got false for: %v", err)
+
+	if loaded.LocalContextSize != DefaultLocalContext || loaded.LocalGPULayers != DefaultLocalGPULayers {
+		t.Fatalf("defaults were not applied: %+v", loaded)
 	}
 }
 
 func TestLoadInvalidJSON(t *testing.T) {
-	tmpDir := t.TempDir()
+	path := useConfigPath(t, "invalid.json")
+	if err := os.WriteFile(path, []byte("not json"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
-	origConfigDir := configDir
-	origConfigPath := configPath
-	configDir = tmpDir
-	configPath = filepath.Join(tmpDir, "invalid.json")
-	defer func() {
-		configDir = origConfigDir
-		configPath = origConfigPath
-	}()
-
-	os.WriteFile(configPath, []byte("not json"), 0644)
-
-	_, err := Load()
-	if err == nil {
+	if _, err := Load(); err == nil {
 		t.Error("Load should fail for invalid JSON")
 	}
 }

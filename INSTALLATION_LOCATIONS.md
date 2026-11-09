@@ -2,7 +2,7 @@
 
 This document explains where files are installed when running the installer scripts.
 
-Installers download both the CLI binary and LiquidAI's LFM3-1.7B Q4_K_M (4-bit) GGUF during setup. The CLI also downloads a missing default model on first use.
+Installers download the CLI binary. The CLI downloads LiquidAI's LFM3-1.7B Q4_K_M (4-bit) GGUF automatically on first use.
 
 The local LFM3 runtime uses an in-process `llama.cpp` v0.8.0 bridge rather than MLX or a local HTTP server process.
 
@@ -16,7 +16,6 @@ Current prebuilt release assets are published for Linux amd64, macOS arm64, and 
 | Model (Linux) | `~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf` |
 | Model (macOS) | `~/Library/Caches/th/models/LFM3-1.7B-Q4_K_M.gguf` |
 | Custom directory | User-specified via `-d` or `--dir` option |
-| Custom model directory | User-specified via `-m` or `--model-dir` option |
 
 ### Examples
 
@@ -24,16 +23,10 @@ Current prebuilt release assets are published for Linux amd64, macOS arm64, and 
 # Default installation
 ./scripts/install.sh
 # Installs binary to: ~/.local/bin/th
-# Installs model to Linux: ~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf
-# Installs model to macOS: ~/Library/Caches/th/models/LFM3-1.7B-Q4_K_M.gguf
 
 # Custom directory
 ./scripts/install.sh -d /usr/local/bin
 # Installs to: /usr/local/bin/th
-
-# Custom model directory
-./scripts/install.sh -m "$HOME/.local/share/th/models"
-# Installs model to: ~/.local/share/th/models/LFM3-1.7B-Q4_K_M.gguf
 ```
 
 ### PATH
@@ -59,7 +52,6 @@ source ~/.zshrc
 | Binary | `%LOCALAPPDATA%\th\bin\th.exe` |
 | Model | `%LOCALAPPDATA%\th\models\LFM3-1.7B-Q4_K_M.gguf` |
 | Custom directory | User-specified via `-InstallDir` parameter |
-| Custom model directory | User-specified via `-ModelDir` parameter |
 | PATH | Installation directory is added to user PATH |
 
 ### Examples
@@ -68,15 +60,10 @@ source ~/.zshrc
 # Default installation
 .\scripts\install.ps1
 # Installs binary to: C:\Users\<username>\AppData\Local\th\bin\th.exe
-# Installs model to: C:\Users\<username>\AppData\Local\th\models\LFM3-1.7B-Q4_K_M.gguf
 
 # Custom directory
 .\scripts\install.ps1 -InstallDir "C:\Program Files\th"
 # Installs to: C:\Program Files\th\th.exe
-
-# Custom model directory
-.\scripts\install.ps1 -ModelDir "D:\models\th"
-# Installs model to: D:\models\th\LFM3-1.7B-Q4_K_M.gguf
 ```
 
 ### PATH
@@ -87,16 +74,7 @@ The installer automatically adds the installation directory to your user PATH. Y
 
 ## Local Model Discovery
 
-`th` resolves the LFM3 GGUF in this order:
-
-1. `local_model_path` from the saved config
-2. `TH_MODEL_PATH`
-3. Managed model path in the user cache directory
-4. Legacy cache location: `~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf`
-5. `./model/LFM3-1.7B-Q4_K_M.gguf`
-6. `model/LFM3-1.7B-Q4_K_M.gguf` next to the executable
-
-If no default copy exists, `th` downloads it to the managed user-cache path. Explicit overrides must point to existing files and never silently select a different model. Leave `local_model_path` unset for portable configuration.
+`th` uses the LFM3 GGUF in the managed user-cache path, or the legacy `~/.cache/th/models/LFM3-1.7B-Q4_K_M.gguf` location from older installs. If neither exists, `th` downloads it to the managed path on first use.
 
 For source builds, the direct bridge uses the checked-out `third_party/llama.cpp` tree and the generated static libraries under its platform build directory.
 
@@ -104,7 +82,6 @@ For source builds, the direct bridge uses the checked-out `third_party/llama.cpp
 - Windows: build with `powershell -ExecutionPolicy Bypass -File scripts/build-llama.ps1`
 - macOS/Linux: build with `bash ./scripts/build-llama.sh`
 - `make build` and `make test` run the native build automatically
-- Download the model with `make model` or the platform-specific `scripts/download-model.*` helper
 - The real inference test is opt-in via `TH_RUN_LOCAL_INFERENCE_TEST=1`; set `TH_INFERENCE_MODEL_PATH` if you want it to use a non-default model path
 
 ## Uninstallation

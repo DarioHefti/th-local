@@ -8,7 +8,7 @@ import (
 )
 
 type Generator interface {
-	GetCommand(ctx context.Context, systemPrompt, userPrompt string) (string, error)
+	GetCommand(ctx context.Context, systemPrompt, userPrompt string, onThinking func(string)) (string, error)
 }
 
 func NewGenerator(cfg *config.Config) (Generator, error) {

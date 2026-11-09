@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	localPredictTokens = 128
+	localPredictTokens = 1024
 )
 
 type localGenerator struct {
@@ -25,11 +25,15 @@ type localGenerator struct {
 }
 
 func newLocalGenerator(cfg *config.Config) (Generator, error) {
-	modelPath, err := resolveLocalModelPath(cfg.LocalModelPath)
+	modelPath, err := resolveLocalModelPath()
 	if err != nil {
 		return nil, err
 	}
 
+	return newLocalGeneratorFromPath(modelPath, cfg)
+}
+
+func newLocalGeneratorFromPath(modelPath string, cfg *config.Config) (Generator, error) {
 	engine, err := llamacpp.New(modelPath, cfg.LocalContextSize, cfg.LocalThreads, cfg.LocalGPULayers)
 	if err != nil {
 		return nil, fmt.Errorf("loading local model: %w", err)
@@ -43,7 +47,7 @@ func newLocalGenerator(cfg *config.Config) (Generator, error) {
 	}, nil
 }
 
-func (g *localGenerator) GetCommand(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+func (g *localGenerator) GetCommand(ctx context.Context, systemPrompt, userPrompt string, onThinking func(string)) (string, error) {
 	select {
 	case <-ctx.Done():
 		return "", ctx.Err()
@@ -55,10 +59,10 @@ func (g *localGenerator) GetCommand(ctx context.Context, systemPrompt, userPromp
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	response, err := g.engine.Predict(prompt, localPredictTokens)
+	response, err := g.engine.PredictStream(prompt, localPredictTokens, streamThinking(onThinking))
 	if err != nil {
 		return "", fmt.Errorf("running local inference: %w", err)
 	}
 
-	return cleanupCommandOutput(stripTurnMarkers(response)), nil
+	return cleanupCommandOutput(stripThinking(stripTurnMarkers(response))), nil
 }

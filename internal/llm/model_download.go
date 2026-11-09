@@ -9,6 +9,22 @@ import (
 	"time"
 )
 
+// downloadProgress reports each whole percent on stderr, since the model takes minutes to fetch.
+type downloadProgress struct {
+	total, written, percent int64
+}
+
+func (p *downloadProgress) Write(data []byte) (int, error) {
+	p.written += int64(len(data))
+	if p.total > 0 {
+		if percent := p.written * 100 / p.total; percent != p.percent {
+			p.percent = percent
+			fmt.Fprintf(os.Stderr, "\r%d%% (%d of %d MB)", percent, p.written>>20, p.total>>20)
+		}
+	}
+	return len(data), nil
+}
+
 func downloadLocalModel(path, url string) error {
 	if info, err := os.Stat(path); err == nil {
 		if info.IsDir() || info.Size() == 0 {
@@ -43,7 +59,9 @@ func downloadLocalModel(path, url string) error {
 	if _, err := partial.Write(magic[:]); err != nil {
 		return fmt.Errorf("writing model header: %w", err)
 	}
-	n, err := io.Copy(partial, response.Body)
+	progress := &downloadProgress{total: response.ContentLength, written: int64(len(magic))}
+	n, err := io.Copy(io.MultiWriter(partial, progress), response.Body)
+	fmt.Fprintln(os.Stderr)
 	if err != nil {
 		return fmt.Errorf("writing model download: %w", err)
 	}

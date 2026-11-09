@@ -5,106 +5,39 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/DarioHefti/th-local/internal/config"
 )
 
-func TestFindLocalModelPathPrefersExplicitPath(t *testing.T) {
+func TestFindLocalModelPathPrefersManagedModel(t *testing.T) {
 	tmpDir := t.TempDir()
-	explicitPath := filepath.Join(tmpDir, "explicit.gguf")
-	envPath := filepath.Join(tmpDir, "env.gguf")
-
-	if err := os.WriteFile(explicitPath, []byte("model"), 0644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
-	}
-	if err := os.WriteFile(envPath, []byte("model"), 0644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
+	managedPath := filepath.Join(tmpDir, "managed.gguf")
+	legacyPath := filepath.Join(tmpDir, "legacy.gguf")
+	for _, path := range []string{managedPath, legacyPath} {
+		if err := os.WriteFile(path, []byte("model"), 0644); err != nil {
+			t.Fatalf("WriteFile failed: %v", err)
+		}
 	}
 
-	resolved, err := findLocalModelPath(explicitPath, envPath, filepath.Join(tmpDir, "managed.gguf"), filepath.Join(tmpDir, "legacy.gguf"), filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
-	if err != nil {
-		t.Fatalf("findLocalModelPath failed: %v", err)
-	}
-
-	if resolved != explicitPath {
-		t.Fatalf("resolved path = %q, want %q", resolved, explicitPath)
+	if resolved, ok := findLocalModelPath(managedPath, legacyPath); !ok || resolved != managedPath {
+		t.Fatalf("resolved = %q, %v, want %q", resolved, ok, managedPath)
 	}
 }
 
-func TestFindLocalModelPathFallsBackToManagedModel(t *testing.T) {
+func TestFindLocalModelPathFallsBackToLegacyModel(t *testing.T) {
 	tmpDir := t.TempDir()
-	managedPath := filepath.Join(tmpDir, "cache", "th", "models", config.DefaultLocalModelFile)
-	if err := os.MkdirAll(filepath.Dir(managedPath), 0755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	if err := os.WriteFile(managedPath, []byte("model"), 0644); err != nil {
+	legacyPath := filepath.Join(tmpDir, "legacy.gguf")
+	if err := os.WriteFile(legacyPath, []byte("model"), 0644); err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	resolved, err := findLocalModelPath("", "", managedPath, filepath.Join(tmpDir, "legacy.gguf"), filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
-	if err != nil {
-		t.Fatalf("findLocalModelPath failed: %v", err)
-	}
-
-	if resolved != managedPath {
-		t.Fatalf("resolved path = %q, want %q", resolved, managedPath)
+	if resolved, ok := findLocalModelPath(filepath.Join(tmpDir, "missing.gguf"), legacyPath); !ok || resolved != legacyPath {
+		t.Fatalf("resolved = %q, %v, want %q", resolved, ok, legacyPath)
 	}
 }
 
-func TestFindLocalModelPathFallsBackToWorkingDirectoryModel(t *testing.T) {
+func TestFindLocalModelPathReportsMissingModel(t *testing.T) {
 	tmpDir := t.TempDir()
-	workingDir := filepath.Join(tmpDir, "cwd")
-	modelDir := filepath.Join(workingDir, "model")
-	if err := os.MkdirAll(modelDir, 0755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-
-	expectedPath := filepath.Join(modelDir, config.DefaultLocalModelFile)
-	if err := os.WriteFile(expectedPath, []byte("model"), 0644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
-	}
-
-	resolved, err := findLocalModelPath("", "", filepath.Join(tmpDir, "missing-managed.gguf"), filepath.Join(tmpDir, "legacy.gguf"), workingDir, filepath.Join(tmpDir, "exe"))
-	if err != nil {
-		t.Fatalf("findLocalModelPath failed: %v", err)
-	}
-
-	if resolved != expectedPath {
-		t.Fatalf("resolved path = %q, want %q", resolved, expectedPath)
-	}
-}
-
-func TestFindLocalModelPathFallsBackToLegacyManagedModel(t *testing.T) {
-	tmpDir := t.TempDir()
-	legacyManagedPath := filepath.Join(tmpDir, ".cache", "th", "models", config.DefaultLocalModelFile)
-	if err := os.MkdirAll(filepath.Dir(legacyManagedPath), 0755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	if err := os.WriteFile(legacyManagedPath, []byte("model"), 0644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
-	}
-
-	resolved, err := findLocalModelPath("", "", filepath.Join(tmpDir, "missing-managed.gguf"), legacyManagedPath, filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
-	if err != nil {
-		t.Fatalf("findLocalModelPath failed: %v", err)
-	}
-
-	if resolved != legacyManagedPath {
-		t.Fatalf("resolved path = %q, want %q", resolved, legacyManagedPath)
-	}
-}
-
-func TestFindLocalModelPathErrorMentionsManagedPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	managedPath := filepath.Join(tmpDir, "cache", "th", "models", config.DefaultLocalModelFile)
-
-	_, err := findLocalModelPath("", "", managedPath, filepath.Join(tmpDir, "legacy.gguf"), filepath.Join(tmpDir, "cwd"), filepath.Join(tmpDir, "exe"))
-	if err == nil {
-		t.Fatal("expected findLocalModelPath to fail")
-	}
-
-	if !strings.Contains(err.Error(), managedPath) {
-		t.Fatalf("error %q does not mention managed path %q", err.Error(), managedPath)
+	if resolved, ok := findLocalModelPath(filepath.Join(tmpDir, "managed.gguf"), ""); ok {
+		t.Fatalf("expected no model, got %q", resolved)
 	}
 }
 
@@ -117,7 +50,7 @@ func TestCleanupCommandOutput(t *testing.T) {
 
 func TestFormatLFM3Prompt(t *testing.T) {
 	got := BuildPrompt(" system prompt ", " user prompt ")
-	want := "<|startoftext|><|im_start|>system\nsystem prompt<|im_end|>\n<|im_start|>user\nuser prompt<|im_end|>\n<|im_start|>assistant\n<think></think>"
+	want := "<|startoftext|><|im_start|>system\nsystem prompt<|im_end|>\n<|im_start|>user\nuser prompt<|im_end|>\n<|im_start|>assistant\n<think>"
 	if got != want {
 		t.Fatalf("LFM3 prompt = %q, want %q", got, want)
 	}
@@ -125,9 +58,35 @@ func TestFormatLFM3Prompt(t *testing.T) {
 
 func TestFormatLFM3PromptWithoutSystem(t *testing.T) {
 	got := BuildPrompt("", "user prompt")
-	want := "<|startoftext|><|im_start|>user\nuser prompt<|im_end|>\n<|im_start|>assistant\n<think></think>"
+	want := "<|startoftext|><|im_start|>user\nuser prompt<|im_end|>\n<|im_start|>assistant\n<think>"
 	if got != want {
 		t.Fatalf("LFM3 prompt = %q, want %q", got, want)
+	}
+}
+
+func TestStripThinking(t *testing.T) {
+	for _, tc := range []struct{ input, want string }{
+		{"Use ls.</think>\nls -la", "ls -la"},
+		{"Maybe </think> ls? Wait.</think>ls -la", "ls -la"},
+		{"ran out of tokens mid-thought", ""},
+	} {
+		if got := stripThinking(tc.input); got != tc.want {
+			t.Fatalf("stripThinking(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestStreamThinking(t *testing.T) {
+	var shown strings.Builder
+	stream := streamThinking(func(piece string) { shown.WriteString(piece) })
+	for _, piece := range []string{"Use", " ls", "</think>", "ls -la"} {
+		stream(piece)
+	}
+	if got := shown.String(); got != "Use ls" {
+		t.Fatalf("streamed thinking = %q, want %q", got, "Use ls")
+	}
+	if streamThinking(nil) != nil {
+		t.Fatal("streamThinking(nil) should not create a callback")
 	}
 }
 

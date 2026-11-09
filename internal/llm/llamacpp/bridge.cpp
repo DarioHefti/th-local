@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+extern "C" void thLlamaOnPiece(uintptr_t on_piece, char * piece, int piece_len);
+
 struct th_llama_model {
     llama_model * model;
     int n_ctx;
@@ -59,7 +61,7 @@ void * th_llama_model_load(const char * model_path, int n_ctx, int threads, int 
     }
 }
 
-int th_llama_model_predict(void * raw_handle, const char * prompt, int max_tokens, char * out_buf, int out_buf_len, char * err_buf, int err_buf_len) {
+int th_llama_model_predict(void * raw_handle, const char * prompt, int max_tokens, uintptr_t on_piece, char * out_buf, int out_buf_len, char * err_buf, int err_buf_len) {
     auto * handle = static_cast<th_llama_model *>(raw_handle);
     if (handle == nullptr || handle->model == nullptr) {
         th_copy_error(err_buf, err_buf_len, "llama.cpp model handle is nil");
@@ -105,8 +107,9 @@ int th_llama_model_predict(void * raw_handle, const char * prompt, int max_token
         return 1;
     }
 
-    const int required_ctx = n_prompt_tokens + std::max(max_tokens, 1);
-    if (required_ctx > handle->n_ctx) {
+    // max_tokens is a ceiling, so long prompts leave less room instead of failing.
+    const int generation_budget = std::min(std::max(max_tokens, 1), handle->n_ctx - n_prompt_tokens);
+    if (generation_budget < 1) {
         llama_sampler_free(smpl);
         llama_free(ctx);
         th_copy_error(err_buf, err_buf_len, "prompt exceeds local context window; increase local_context_size or reduce prompt size");
@@ -118,7 +121,7 @@ int th_llama_model_predict(void * raw_handle, const char * prompt, int max_token
     response.reserve(static_cast<size_t>(std::max(max_tokens, 1) * 16));
 
     llama_token next_token = LLAMA_TOKEN_NULL;
-    for (int generated = 0; generated < max_tokens; ++generated) {
+    for (int generated = 0; generated < generation_budget; ++generated) {
         if (llama_decode(ctx, batch) != 0) {
             llama_sampler_free(smpl);
             llama_free(ctx);
@@ -145,6 +148,9 @@ int th_llama_model_predict(void * raw_handle, const char * prompt, int max_token
         }
 
         response.append(piece.data(), static_cast<size_t>(piece_len));
+        if (on_piece != 0) {
+            thLlamaOnPiece(on_piece, piece.data(), piece_len);
+        }
         batch = llama_batch_get_one(&next_token, 1);
     }
 

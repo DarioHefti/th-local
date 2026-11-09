@@ -3,48 +3,25 @@ set -e
 
 REPO="DarioHefti/th-local"
 BINARY_NAME="th"
-MODEL_NAME="LFM3-1.7B-Q4_K_M.gguf"
-MODEL_URL="https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LFM3-1.7B-Q4_K_M.gguf?download=true"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
-MODEL_DIR="${MODEL_DIR:-}"
 FORCE=false
 MAX_RETRIES=3
 RETRY_DELAY=2
 
-default_model_dir() {
-    case "$(uname -s)" in
-        Darwin*) echo "$HOME/Library/Caches/th/models" ;;
-        Linux*) echo "${XDG_CACHE_HOME:-$HOME/.cache}/th/models" ;;
-        *) echo "${XDG_CACHE_HOME:-$HOME/.cache}/th/models" ;;
-    esac
-}
-
-legacy_model_dir() {
-    case "$(uname -s)" in
-        Darwin*) echo "$HOME/.cache/th/models" ;;
-        *) echo "" ;;
-    esac
-}
-
 usage() {
-    local default_model_dir_value
-    default_model_dir_value="$(default_model_dir)"
-
     cat <<EOF
 Usage: install.sh [OPTIONS]
 
-Install th (Terminal Help) CLI
+Install th (Terminal Help) CLI. The model downloads automatically the first time you run th.
 
 OPTIONS:
     -d, --dir DIR       Installation directory (default: ~/.local/bin)
-    -m, --model-dir DIR Model directory (default: $default_model_dir_value)
     -f, --force         Force reinstall
     -h, --help          Show this help message
 
 EXAMPLES:
     install.sh
     install.sh -d /usr/local/bin
-    install.sh -m "$default_model_dir_value"
     install.sh -f
 EOF
 }
@@ -67,15 +44,6 @@ parse_args() {
                     exit 1
                 fi
                 INSTALL_DIR="$2"
-                shift 2
-                ;;
-            -m|--model-dir)
-                if [[ -z "$2" || "$2" == -* ]]; then
-                    log_error "Option $1 requires a directory argument"
-                    usage
-                    exit 1
-                fi
-                MODEL_DIR="$2"
                 shift 2
                 ;;
             -f|--force)
@@ -169,33 +137,9 @@ ensure_directory() {
     fi
 
     if [[ ! -w "$path" ]]; then
-        log_error "${label^} directory is not writable: $path"
+        log_error "$label directory is not writable: $path"
         exit 1
     fi
-}
-
-migrate_legacy_model_if_needed() {
-    local current_model_dir="$1"
-    local legacy_dir="$2"
-
-    if [[ -z "$legacy_dir" || "$current_model_dir" == "$legacy_dir" ]]; then
-        return
-    fi
-
-    local final_path="$current_model_dir/$MODEL_NAME"
-    local legacy_path="$legacy_dir/$MODEL_NAME"
-
-    if [[ -e "$final_path" || ! -f "$legacy_path" ]]; then
-        return
-    fi
-
-    ensure_directory "$current_model_dir" "model"
-
-    log_info "Migrating model from $legacy_path to $final_path"
-    mv "$legacy_path" "$final_path" || {
-        log_error "Failed to migrate existing model to $final_path"
-        exit 1
-    }
 }
 
 download_file() {
@@ -248,28 +192,6 @@ download_binary() {
     chmod +x "$output_path"
 }
 
-ensure_model() {
-    local final_path="$MODEL_DIR/$MODEL_NAME"
-    local partial_path="${final_path}.part"
-
-    ensure_directory "$MODEL_DIR" "model"
-
-    if [[ -f "$final_path" ]] && [[ "$FORCE" != "true" ]]; then
-        log_info "Model already present at $final_path"
-        return 0
-    fi
-
-    rm -f "$partial_path"
-
-    if ! download_file "$MODEL_URL" "$partial_path" "$MODEL_NAME"; then
-        log_error "Failed to download model after $MAX_RETRIES attempts"
-        exit 1
-    fi
-
-    mv "$partial_path" "$final_path"
-    log_info "Model ready at $final_path"
-}
-
 verify_binary() {
     local binary_path="$1"
     
@@ -299,12 +221,6 @@ main() {
     parse_args "$@"
     check_dependencies
 
-    if [[ -z "$MODEL_DIR" ]]; then
-        MODEL_DIR="$(default_model_dir)"
-    fi
-
-    migrate_legacy_model_if_needed "$MODEL_DIR" "$(legacy_model_dir)"
-    
     local binary_path="$INSTALL_DIR/$BINARY_NAME"
     
     if [[ -f "$binary_path" ]] && [[ "$FORCE" != "true" ]]; then
@@ -342,11 +258,9 @@ main() {
         fi
     fi
 
-    ensure_model
-    
     echo ""
     echo "✓ Binary available at $binary_path"
-    echo "✓ Model available at $MODEL_DIR/$MODEL_NAME"
+    echo "  The LFM3 model downloads automatically the first time you run th."
     echo ""
     echo "Add to PATH if not already added:"
     echo "  echo 'export PATH=\"\$PATH:$INSTALL_DIR\"' >> ~/.bashrc"

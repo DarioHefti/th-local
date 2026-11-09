@@ -8,9 +8,6 @@
 .PARAMETER InstallDir
     Installation directory (default: $env:LOCALAPPDATA\th\bin)
 
-.PARAMETER ModelDir
-    Model directory (default: $env:LOCALAPPDATA\th\models)
-    
 .PARAMETER Force
     Force reinstall
     
@@ -23,14 +20,11 @@
 
 param(
     [string]$InstallDir = "$env:LOCALAPPDATA\th\bin",
-    [string]$ModelDir = "$env:LOCALAPPDATA\th\models",
     [switch]$Force
 )
 
 $Repo = "DarioHefti/th-local"
 $BinaryName = "th"
-$ModelName = "LFM3-1.7B-Q4_K_M.gguf"
-$ModelUrl = "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/main/LFM3-1.7B-Q4_K_M.gguf?download=true"
 $MaxRetries = 3
 $RetryDelay = 2
 
@@ -190,40 +184,6 @@ function Download-File {
     return $false
 }
 
-function Ensure-Model {
-    Ensure-Directory -Path $ModelDir -Label "Model"
-
-    $finalPath = Join-Path $ModelDir $ModelName
-    $partialPath = "$finalPath.part"
-
-    if ((Test-Path $finalPath) -and -not $Force) {
-        Write-Info "Model already present at $finalPath"
-        return $finalPath
-    }
-
-    if (Test-Path $partialPath) {
-        Remove-Item $partialPath -Force -ErrorAction SilentlyContinue
-    }
-
-    if (-not (Download-File -Url $ModelUrl -OutputPath $partialPath -Description $ModelName)) {
-        Write-ErrorMsg "Failed to download model after $MaxRetries attempts"
-        exit 1
-    }
-
-    try {
-        Move-Item -Path $partialPath -Destination $finalPath -Force
-    } catch {
-        Write-ErrorMsg "Failed to install model: $_"
-        if (Test-Path $partialPath) {
-            Remove-Item $partialPath -Force -ErrorAction SilentlyContinue
-        }
-        exit 1
-    }
-
-    Write-Info "Model ready at $finalPath"
-    return $finalPath
-}
-
 function Main {
     $finalPath = Join-Path $InstallDir "$BinaryName.exe"
     
@@ -292,16 +252,13 @@ function Main {
         }
     }
 
-    $installedModelPath = Ensure-Model
-    
     Write-Host ""
     Write-Host "✓ Binary available at $finalPath" -ForegroundColor Green
-    Write-Host "✓ Model available at $installedModelPath" -ForegroundColor Green
     
     Add-ToPath -Path $InstallDir
     
     Write-Host ""
-    Write-Host "Run 'th --config' anytime to change your default model" -ForegroundColor Cyan
+    Write-Host "The LFM3 model downloads automatically the first time you run th" -ForegroundColor Cyan
 }
 
 Main

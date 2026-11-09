@@ -19,6 +19,15 @@ func PrintCommand(cmd string, copyToClipboard bool) {
 	}
 }
 
+// PrintThinking writes to stderr so stdout carries only the command.
+func PrintThinking(text string) {
+	fmt.Fprintf(os.Stderr, "\x1b[2m%s\x1b[0m", text)
+}
+
+func EndThinking() {
+	fmt.Fprintln(os.Stderr)
+}
+
 func PrintError(err error) {
 	fmt.Fprintf(os.Stderr, "\x1b[31m✗ Error: %v\x1b[0m\n", err)
 }
@@ -31,14 +40,6 @@ func PrintPrompt(prompt string) {
 	fmt.Fprintf(os.Stderr, "\x1b[35m--- Prompt Sent To LLM ---\x1b[0m\n%s\n", prompt)
 }
 
-func PrintSuccess(msg string) {
-	fmt.Printf("\x1b[32m✓ %s\x1b[0m\n", msg)
-}
-
 func PrintAuthPrompt() {
 	fmt.Printf("\x1b[33m🔐 Opening browser for authentication...\x1b[0m\n")
-}
-
-func PrintSetupRequired() {
-	fmt.Printf("\x1b[33m🔧 First-time setup required!\x1b[0m\n\n")
 }

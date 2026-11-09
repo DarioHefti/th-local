@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/DarioHefti/th-local/internal/config"
 	"github.com/DarioHefti/th-local/internal/detect"
@@ -16,7 +14,6 @@ import (
 
 var (
 	copyToClipboard bool
-	configFlag      bool
 	includeGitInfo  bool
 	includeTreeInfo bool
 	logPrompt       bool
@@ -34,14 +31,9 @@ Examples:
 	th -gt "how do i run the tests in this repo"
 	th -log "how do i create a new directory"
   th "find large files over 100MB"
-  th --config  # Re-run setup wizard
 `,
-	Args: validateRootArgs,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if configFlag {
-			return runSetupWizard()
-		}
-
 		if len(args) == 0 {
 			return cmd.Usage()
 		}
@@ -50,17 +42,7 @@ Examples:
 
 		cfg, err := config.Load()
 		if err != nil {
-			if config.IsConfigNotFound(err) {
-				if err := runSetupWizard(); err != nil {
-					return err
-				}
-				cfg, err = config.Load()
-				if err != nil {
-					return fmt.Errorf("loading config after setup: %w", err)
-				}
-			} else {
-				return fmt.Errorf("loading config: %w", err)
-			}
+			return fmt.Errorf("loading config: %w", err)
 		}
 
 		llmClient, err := llm.NewGenerator(cfg)
@@ -83,7 +65,8 @@ Examples:
 			output.PrintPrompt(llm.BuildPrompt(systemPrompt, query))
 		}
 
-		command, err := llmClient.GetCommand(ctx, systemPrompt, query)
+		command, err := llmClient.GetCommand(ctx, systemPrompt, query, output.PrintThinking)
+		output.EndThinking()
 		if err != nil {
 			return fmt.Errorf("getting command: %w", err)
 		}
@@ -126,81 +109,10 @@ func normalizeArgs(args []string) []string {
 	return normalized
 }
 
-func runSetupWizard() error {
-	output.PrintSetupRequired()
-
-	reader := bufio.NewReader(os.Stdin)
-
-	existing, _ := config.Load()
-
-	fmt.Println("th uses a local GGUF model through the built-in llama.cpp bridge.")
-	fmt.Println()
-
-	if existing != nil && existing.LocalModelPath != "" {
-		fmt.Printf("  Current model path:    %s\n", existing.LocalModelPath)
-		fmt.Println()
-	}
-
-	autoDetectMessage := "Model path (press Enter to auto-detect the managed th model location): "
-	if existing != nil && existing.LocalModelPath != "" {
-		autoDetectMessage = fmt.Sprintf("Model path (press Enter to keep %s): ", existing.LocalModelPath)
-	} else if managedPath, err := config.DefaultManagedModelPath(); err == nil {
-		autoDetectMessage = fmt.Sprintf("Model path (press Enter to auto-detect %s): ", managedPath)
-	}
-
-	fmt.Print(autoDetectMessage)
-	modelPath, _ := reader.ReadString('\n')
-	modelPath = strings.TrimSpace(modelPath)
-
-	if modelPath == "" && existing != nil {
-		modelPath = existing.LocalModelPath
-	}
-
-	cfg := &config.Config{
-		Provider:       config.ProviderLocal,
-		Model:          config.DefaultLocalModel,
-		LocalModelPath: modelPath,
-	}
-
-	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("saving config: %w", err)
-	}
-
-	fmt.Println()
-	output.PrintSuccess(fmt.Sprintf("Configuration saved to %s", config.ConfigPath()))
-	fmt.Printf("  Model path:    %s\n", describeModelPath(cfg.LocalModelPath))
-
-	return nil
-}
-
-func describeModelPath(path string) string {
-	if path == "" {
-		return "(auto-detect)"
-	}
-	return path
-}
-
-func validateRootArgs(cmd *cobra.Command, args []string) error {
-	cfgMode, err := cmd.Flags().GetBool("config")
-	if err != nil {
-		return err
-	}
-
-	if cfgMode {
-		if len(args) > 0 {
-			return fmt.Errorf("--config does not accept a query argument")
-		}
-		return nil
-	}
-
-	return cobra.MaximumNArgs(1)(cmd, args)
-}
-
 func init() {
 	rootCmd.Flags().BoolVar(&copyToClipboard, "c", false, "Copy result to clipboard")
 	rootCmd.Flags().BoolVarP(&includeGitInfo, "git", "g", false, "Include git branch and git status -s output in the prompt")
 	rootCmd.Flags().BoolVarP(&includeTreeInfo, "tree", "t", false, "Include top-level workspace hints in the prompt")
 	rootCmd.Flags().BoolVar(&logPrompt, "log", false, "Print the final prompt sent to the LLM")
-	rootCmd.Flags().BoolVar(&configFlag, "config", false, "Run setup wizard")
 	rootCmd.AddCommand(versionCmd)
 }

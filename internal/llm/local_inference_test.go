@@ -31,17 +31,14 @@ func TestLocalGeneratorPerformsInference(t *testing.T) {
 	}
 
 	cfg := &config.Config{
-		Provider:         config.ProviderLocal,
-		Model:            config.DefaultLocalModel,
-		LocalModelPath:   modelPath,
 		LocalContextSize: 512,
 		LocalThreads:     1,
 		LocalGPULayers:   0,
 	}
 
-	generator, err := newLocalGenerator(cfg)
+	generator, err := newLocalGeneratorFromPath(modelPath, cfg)
 	if err != nil {
-		t.Fatalf("newLocalGenerator failed: %v", err)
+		t.Fatalf("newLocalGeneratorFromPath failed: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -51,6 +48,7 @@ func TestLocalGeneratorPerformsInference(t *testing.T) {
 		ctx,
 		"You are a shell command generator. Reply with exactly echo test-mvp and nothing else.",
 		"Return the required shell command exactly.",
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("GetCommand failed: %v", err)
@@ -65,7 +63,6 @@ func TestLocalGeneratorPerformsInference(t *testing.T) {
 func resolveInferenceTestModelPath() (string, error) {
 	candidates := []string{
 		strings.TrimSpace(os.Getenv("TH_INFERENCE_MODEL_PATH")),
-		strings.TrimSpace(os.Getenv("TH_MODEL_PATH")),
 	}
 
 	if managedPath, err := config.DefaultManagedModelPath(); err == nil {

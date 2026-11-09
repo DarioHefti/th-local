@@ -39,6 +39,11 @@ if [[ ! -f "$LLAMA_DIR/CMakeLists.txt" ]]; then
     exit 1
 fi
 
+METAL="OFF"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    METAL="ON"
+fi
+
 log_info "Configuring llama.cpp native libraries in $BUILD_DIR"
 cmake -S "$LLAMA_DIR" -B "$BUILD_DIR" -G "$GENERATOR" \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
@@ -51,7 +56,8 @@ cmake -S "$LLAMA_DIR" -B "$BUILD_DIR" -G "$GENERATOR" \
     -DGGML_NATIVE=OFF \
     -DGGML_OPENMP=OFF \
     -DGGML_ACCELERATE=OFF \
-    -DGGML_METAL=OFF \
+    -DGGML_METAL="$METAL" \
+    -DGGML_METAL_EMBED_LIBRARY="$METAL" \
     -DGGML_BLAS=OFF
 
 log_info "Building llama.cpp static library"

@@ -59,10 +59,3 @@ func TestDownloadLocalModelRejectsBadResponses(t *testing.T) {
 		})
 	}
 }
-
-func TestResolveLocalModelPathRejectsMissingOverride(t *testing.T) {
-	t.Setenv("TH_MODEL_PATH", "")
-	if _, err := resolveLocalModelPath(filepath.Join(t.TempDir(), "missing.gguf")); err == nil {
-		t.Fatal("missing explicit model should fail rather than use another model")
-	}
-}

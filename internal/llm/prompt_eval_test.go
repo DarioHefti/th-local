@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DarioHefti/th-local/internal/config"
 	"github.com/DarioHefti/th-local/internal/detect"
 	"github.com/DarioHefti/th-local/internal/llm/llamacpp"
 )
@@ -64,7 +65,7 @@ func TestShellPromptEvaluation(t *testing.T) {
 	if err != nil || path == "" {
 		t.Fatalf("model path missing: %v", err)
 	}
-	engine, err := llamacpp.New(path, 2048, min(4, runtime.NumCPU()), 0)
+	engine, err := llamacpp.New(path, 2048, min(4, runtime.NumCPU()), config.DefaultLocalGPULayers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +77,7 @@ func TestShellPromptEvaluation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		command := cleanupCommandOutput(stripTurnMarkers(raw))
+		command := cleanupCommandOutput(stripThinking(stripTurnMarkers(raw)))
 		parser := exec.Command(zsh, "-f", "-n")
 		parser.Stdin = strings.NewReader(command)
 		ok := parser.Run() == nil && command != "" && !strings.ContainsAny(command, "\n\r#`") && regexp.MustCompile("^(?:"+tc.want+")").MatchString(command)

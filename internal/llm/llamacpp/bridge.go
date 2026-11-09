@@ -3,9 +3,9 @@ package llamacpp
 /*
 #cgo CPPFLAGS: -I${SRCDIR}/../../../third_party/llama.cpp/include -I${SRCDIR}/../../../third_party/llama.cpp/ggml/include
 #cgo CXXFLAGS: -std=c++17
-#cgo windows LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build-mingw/src -L${SRCDIR}/../../../third_party/llama.cpp/build-mingw/ggml/src -lllama -l:ggml.a -l:ggml-cpu.a -l:ggml-base.a -lstdc++ -lws2_32 -lpsapi -lwinmm -lbcrypt
+#cgo windows LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build-mingw/src -L${SRCDIR}/../../../third_party/llama.cpp/build-mingw/ggml/src -lllama -l:ggml.a -l:ggml-cpu.a -l:ggml-base.a -lstdc++ -lws2_32 -lpsapi -lwinmm -lbcrypt -static
 #cgo linux LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build/src -L${SRCDIR}/../../../third_party/llama.cpp/build/ggml/src -lllama -l:libggml.a -l:libggml-cpu.a -l:libggml-base.a -lstdc++ -lm -ldl -pthread
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build/src -L${SRCDIR}/../../../third_party/llama.cpp/build/ggml/src -lllama -lggml -lggml-cpu -lggml-base -lc++
+#cgo darwin LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build/src -L${SRCDIR}/../../../third_party/llama.cpp/build/ggml/src -L${SRCDIR}/../../../third_party/llama.cpp/build/ggml/src/ggml-metal -lllama -lggml -lggml-cpu -lggml-metal -lggml-base -lc++ -framework Foundation -framework Metal -framework MetalKit
 #include "bridge.h"
 #include <stdlib.h>
 */
@@ -14,6 +14,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"runtime/cgo"
 	"unsafe"
 )
 
@@ -35,6 +36,11 @@ func New(modelPath string, contextSize, threads, gpuLayers int) (*Model, error) 
 }
 
 func (m *Model) Predict(prompt string, maxTokens int) (string, error) {
+	return m.PredictStream(prompt, maxTokens, nil)
+}
+
+// PredictStream calls onPiece with each generated token's text before returning the full response.
+func (m *Model) PredictStream(prompt string, maxTokens int, onPiece func(string)) (string, error) {
 	if m == nil || m.handle == nil {
 		return "", fmt.Errorf("llama.cpp model is not initialized")
 	}
@@ -45,12 +51,23 @@ func (m *Model) Predict(prompt string, maxTokens int) (string, error) {
 	outBuf := make([]C.char, maxInt(maxTokens*64, 8192))
 	errBuf := make([]C.char, 1024)
 
-	result := C.th_llama_model_predict(m.handle, promptText, C.int(maxTokens), &outBuf[0], C.int(len(outBuf)), &errBuf[0], C.int(len(errBuf)))
+	var callback cgo.Handle
+	if onPiece != nil {
+		callback = cgo.NewHandle(onPiece)
+		defer callback.Delete()
+	}
+
+	result := C.th_llama_model_predict(m.handle, promptText, C.int(maxTokens), C.uintptr_t(callback), &outBuf[0], C.int(len(outBuf)), &errBuf[0], C.int(len(errBuf)))
 	if result != 0 {
 		return "", errors.New(C.GoString(&errBuf[0]))
 	}
 
 	return C.GoString(&outBuf[0]), nil
+}
+
+//export thLlamaOnPiece
+func thLlamaOnPiece(onPiece C.uintptr_t, piece *C.char, pieceLen C.int) {
+	cgo.Handle(onPiece).Value().(func(string))(C.GoStringN(piece, pieceLen))
 }
 
 func (m *Model) Close() {
